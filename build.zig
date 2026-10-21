@@ -22,6 +22,7 @@ pub fn build(b: *std.Build) void {
             .imports = &.{
                 .{ .name = "core", .module = exe.root_module.import_table.get("core").? },
                 .{ .name = "scan_pool", .module = exe.root_module.import_table.get("scan_pool").? },
+                .{ .name = "fsops", .module = exe.root_module.import_table.get("fsops").? },
             },
         }) });
         test_step.dependOn(&b.addRunArtifact(t).step);
@@ -58,6 +59,13 @@ fn addExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin
         .optimize = optimize,
         .imports = &.{ .{ .name = "core", .module = core }, .{ .name = "vaxis", .module = vaxis } },
     });
+    const fsops = b.createModule(.{
+        .root_source_file = b.path("src/fsops.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .imports = &.{ .{ .name = "core", .module = core }, .{ .name = "scan_pool", .module = scan_pool } },
+    });
     const root = switch (target.result.os.tag) {
         .macos => "src/platform/macos.zig",
         .linux => "src/platform/linux.zig",
@@ -74,6 +82,7 @@ fn addExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin
                 .{ .name = "core", .module = core },
                 .{ .name = "scan_pool", .module = scan_pool },
                 .{ .name = "tui", .module = tui },
+                .{ .name = "fsops", .module = fsops },
             },
         }),
     });
