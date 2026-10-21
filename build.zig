@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     b.step("run", "Run the app").dependOn(&run_cmd.step);
 
     const test_step = b.step("test", "Run tests");
-    for ([_][]const u8{ "test/core_test.zig", "test/scan_test.zig", "test/fsops_test.zig" }) |file| {
+    for ([_][]const u8{ "test/core_test.zig", "test/scan_test.zig", "test/fsops_test.zig", "test/tui_test.zig", "test/fuzzy/names_fuzz.zig", "test/fuzzy/keymap_fuzz.zig" }) |file| {
         const t = b.addTest(.{ .root_module = b.createModule(.{
             .root_source_file = b.path(file),
             .target = target,
@@ -23,6 +23,8 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "core", .module = exe.root_module.import_table.get("core").? },
                 .{ .name = "scan_pool", .module = exe.root_module.import_table.get("scan_pool").? },
                 .{ .name = "fsops", .module = exe.root_module.import_table.get("fsops").? },
+                .{ .name = "tui", .module = exe.root_module.import_table.get("tui").? },
+                .{ .name = "vaxis", .module = exe.root_module.import_table.get("tui").?.import_table.get("vaxis").? },
             },
         }) });
         test_step.dependOn(&b.addRunArtifact(t).step);

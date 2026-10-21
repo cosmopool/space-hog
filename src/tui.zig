@@ -26,9 +26,7 @@ pub const Tui = struct {
     vx: vaxis.Vaxis,
     loop: vaxis.Loop(Event),
     tty_buf: [4096]u8 = undefined,
-    /// First visible row of the current column; kept so the cursor stays on screen.
-    scroll: usize = 0,
-    scroll_path: std.ArrayList(u8) = .empty,
+    scroll: Scroll = .{},
     resize_handler: bool = false,
 
     /// `t` must stay at a stable address (the loop keeps pointers into it).
@@ -52,7 +50,6 @@ pub const Tui = struct {
         t.loop.stop();
         t.vx.deinit(t.gpa, t.tty.writer());
         t.tty.deinit();
-        t.scroll_path.deinit(t.gpa);
     }
 
     pub fn next(t: *Tui) !Event {
@@ -73,50 +70,62 @@ pub const Tui = struct {
     }
 
     pub fn draw(t: *Tui, arena: Allocator, v: core.View) !void {
-        const win = t.vx.window();
-        win.clear();
-        if (win.width < 10 or win.height < 5) return t.vx.render(t.tty.writer());
-
-        printLine(win, 0, 1, &.{.{ .text = try clean(arena, v.path), .style = .{ .fg = DIM } }});
-        const body_h = win.height - 3;
-        const body = win.child(.{ .y_off = 1, .height = body_h + 1 });
-        hline(body, 0, win.width);
-        hline(body, body_h, win.width);
-
-        if (v.mode == .log) {
-            try drawLog(arena, body.child(.{ .y_off = 1, .height = body_h - 1 }), v);
-        } else {
-            const pw = win.width / 5;
-            const cw = (win.width - pw) / 2;
-            const rows_h = body_h - 1;
-            const cols = [_]struct { x: u16, w: u16 }{ .{ .x = 0, .w = pw }, .{ .x = pw + 1, .w = cw }, .{ .x = pw + cw + 2, .w = win.width -| (pw + cw + 2) } };
-            vline(body, pw, 1, rows_h);
-            vline(body, pw + cw + 1, 1, rows_h);
-
-            try t.updateScroll(v, rows_h);
-            const parent_off = v.parent_cursor -| (rows_h / 2);
-            try drawColumn(arena, body.child(.{ .x_off = cols[0].x, .y_off = 1, .width = cols[0].w, .height = rows_h }), v.parent, parent_off);
-            try drawColumn(arena, body.child(.{ .x_off = cols[1].x, .y_off = 1, .width = cols[1].w, .height = rows_h }), v.current, t.scroll);
-            try drawColumn(arena, body.child(.{ .x_off = cols[2].x, .y_off = 1, .width = cols[2].w, .height = rows_h }), v.preview, 0);
-        }
-
-        try drawStatus(arena, win.child(.{ .y_off = win.height - 1, .height = 1 }), v);
-        if (v.prompt) |p| try drawPrompt(arena, win, p, v.status.dry_run);
+        try paint(arena, t.vx.window(), v, &t.scroll);
         try t.vx.render(t.tty.writer());
     }
+};
 
-    fn updateScroll(t: *Tui, v: core.View, h: usize) !void {
-        if (!std.mem.eql(u8, t.scroll_path.items, v.path)) {
-            t.scroll_path.clearRetainingCapacity();
-            try t.scroll_path.appendSlice(t.gpa, v.path);
-            t.scroll = 0;
+/// First visible row of the current column, kept across frames so the cursor stays on screen.
+/// Resets when the directory changes.
+pub const Scroll = struct {
+    offset: usize = 0,
+    path_hash: u64 = 0,
+
+    fn update(s: *Scroll, v: core.View, h: usize) void {
+        const hash = std.hash.Wyhash.hash(0, v.path);
+        if (hash != s.path_hash) {
+            s.path_hash = hash;
+            s.offset = 0;
         }
         if (h == 0) return;
-        if (v.cursor < t.scroll) t.scroll = v.cursor;
-        if (v.cursor >= t.scroll + h) t.scroll = v.cursor + 1 - h;
-        if (t.scroll > v.current.len -| h) t.scroll = v.current.len -| h;
+        if (v.cursor < s.offset) s.offset = v.cursor;
+        if (v.cursor >= s.offset + h) s.offset = v.cursor + 1 - h;
+        if (s.offset > v.current.len -| h) s.offset = v.current.len -| h;
     }
 };
+
+/// Draws `v` into `win` (any size, including tiny or zero). Pure apart from `scroll`; the app renders the
+/// result to the terminal, tests inspect the cells.
+pub fn paint(arena: Allocator, win: vaxis.Window, v: core.View, scroll: *Scroll) !void {
+    win.clear();
+    if (win.width < 10 or win.height < 5) return;
+
+    printLine(win, 0, 1, &.{.{ .text = try clean(arena, v.path), .style = .{ .fg = DIM } }});
+    const body_h = win.height - 3;
+    const body = win.child(.{ .y_off = 1, .height = body_h + 1 });
+    hline(body, 0, win.width);
+    hline(body, body_h, win.width);
+
+    if (v.mode == .log) {
+        try drawLog(arena, body.child(.{ .y_off = 1, .height = body_h - 1 }), v);
+    } else {
+        const pw = win.width / 5;
+        const cw = (win.width - pw) / 2;
+        const rows_h = body_h - 1;
+        const cols = [_]struct { x: u16, w: u16 }{ .{ .x = 0, .w = pw }, .{ .x = pw + 1, .w = cw }, .{ .x = pw + cw + 2, .w = win.width -| (pw + cw + 2) } };
+        vline(body, pw, 1, rows_h);
+        vline(body, pw + cw + 1, 1, rows_h);
+
+        scroll.update(v, rows_h);
+        const parent_off = v.parent_cursor -| (rows_h / 2);
+        try drawColumn(arena, body.child(.{ .x_off = cols[0].x, .y_off = 1, .width = cols[0].w, .height = rows_h }), v.parent, parent_off);
+        try drawColumn(arena, body.child(.{ .x_off = cols[1].x, .y_off = 1, .width = cols[1].w, .height = rows_h }), v.current, scroll.offset);
+        try drawColumn(arena, body.child(.{ .x_off = cols[2].x, .y_off = 1, .width = cols[2].w, .height = rows_h }), v.preview, 0);
+    }
+
+    try drawStatus(arena, win.child(.{ .y_off = win.height - 1, .height = 1 }), v);
+    if (v.prompt) |p| try drawPrompt(arena, win, p, v.status.dry_run);
+}
 
 /// Converts a vaxis key press into a core key. Returns null for keys the core does not care about.
 pub fn coreKey(k: vaxis.Key) ?core.Key {
