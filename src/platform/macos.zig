@@ -29,6 +29,7 @@ pub fn main(init: std.process.Init) !void {
 
     scanner.lock();
     try fsops.listOuter(gpa, &app, &listing);
+    try scanner.registerLocked(app.root);
     try scanner.pushLocked(&.{app.root});
     scanner.unlock();
     try scanner.start(args.jobs);

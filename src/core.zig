@@ -50,6 +50,8 @@ pub const App = struct {
     cursor: NodeId = .nil,
     /// Last selection per directory, restored when coming back.
     cursors: std.AutoHashMapUnmanaged(NodeId, NodeId) = .empty,
+    /// Alias directory → the node for the same directory that is actually scanned and counted.
+    aliases: std.AutoHashMapUnmanaged(NodeId, NodeId) = .empty,
     keys: keymap.Keymap,
     pending: keymap.Seq = .{},
     mode: Mode = .normal,
@@ -84,6 +86,7 @@ pub const App = struct {
         const gpa = app.gpa;
         app.tree.deinit(gpa);
         app.cursors.deinit(gpa);
+        app.aliases.deinit(gpa);
         for (app.log.items) |msg| gpa.free(msg);
         app.log.deinit(gpa);
         app.outer.deinit(gpa);
@@ -130,6 +133,18 @@ pub const App = struct {
             while (it != .nil) : (it = parents[it.index()]) flags[it.index()].incomplete = true;
         }
         try app.logError(msg);
+    }
+
+    /// `dir` is another path to `target` (same dev+inode). It is not scanned, counts 0 bytes, can't be entered,
+    /// and trash/delete on it are refused. Anything already added under it is dropped.
+    pub fn markAlias(app: *App, dir: NodeId, target: NodeId) Allocator.Error!void {
+        if (dir == .nil or dir == target or app.tree.isDetached(dir)) return;
+        const flags = app.tree.nodes.items(.flags);
+        if (flags[dir.index()].alias) return;
+        app.tree.subSize(dir, app.tree.get(dir).size);
+        flags[dir.index()].alias = true;
+        app.tree.nodes.items(.first_child)[dir.index()] = .nil;
+        try app.aliases.put(app.gpa, dir, target);
     }
 
     fn markShared(app: *App, dir: NodeId) void {
@@ -311,7 +326,7 @@ pub const App = struct {
             .half_up => return .{ .scroll = .{ .down = false } },
             .enter => {
                 const sel = try app.selected();
-                if (sel == .nil or app.tree.get(sel).kind != .dir) return .none;
+                if (sel == .nil or app.tree.get(sel).kind != .dir or app.tree.get(sel).flags.alias) return .none;
                 try app.cursors.put(app.gpa, app.cwd, sel);
                 app.cwd = sel;
                 app.cursor = app.cursors.get(sel) orelse .nil;
@@ -333,6 +348,7 @@ pub const App = struct {
             .delete => {
                 const sel = try app.selected();
                 if (sel == .nil) return .none;
+                if (app.tree.get(sel).flags.alias) return app.refuseAlias("rm -r", sel);
                 app.mode = .prompt;
                 app.prompt_target = sel;
             },
@@ -385,6 +401,7 @@ pub const App = struct {
 
     /// The single place a trash/delete command is produced. In dry run it is logged instead.
     fn destroy(app: *App, comptime what: enum { trash, delete }, id: NodeId) Allocator.Error!Command {
+        if (app.tree.get(id).flags.alias) return app.refuseAlias(if (what == .trash) "trash" else "rm -r", id);
         if (!app.dry_run) return @unionInit(Command, @tagName(what), id);
         var p: std.ArrayList(u8) = .empty;
         defer p.deinit(app.gpa);
@@ -397,6 +414,19 @@ pub const App = struct {
         try app.log.append(app.gpa, msg);
         app.dry_logged += 1;
         app.last_dry_run = app.log.items.len - 1;
+        return .none;
+    }
+
+    fn refuseAlias(app: *App, what: []const u8, id: NodeId) Allocator.Error!Command {
+        var p: std.ArrayList(u8) = .empty;
+        defer p.deinit(app.gpa);
+        var t: std.ArrayList(u8) = .empty;
+        defer t.deinit(app.gpa);
+        try app.tree.fullPath(id, &p, app.gpa);
+        try app.tree.fullPath(app.aliases.get(id) orelse .nil, &t, app.gpa);
+        const msg = try std.fmt.allocPrint(app.gpa, "{s} refused for {s}: same directory as {s}; use that path", .{ what, p.items, t.items });
+        defer app.gpa.free(msg);
+        try app.logError(msg);
         return .none;
     }
 
@@ -464,6 +494,12 @@ pub const App = struct {
         return false;
     }
 
+    fn aliasPath(app: *const App, arena: Allocator, id: NodeId) Allocator.Error![]const u8 {
+        var out: std.ArrayList(u8) = .empty;
+        try app.tree.fullPath(app.aliases.get(id) orelse .nil, &out, arena);
+        return out.items;
+    }
+
     fn rows(app: *const App, arena: Allocator, parent: NodeId, kids: []const NodeId, sel: NodeId) Allocator.Error![]Row {
         const out = try arena.alloc(Row, kids.len);
         const sizes = try arena.alloc(u64, kids.len);
@@ -480,6 +516,7 @@ pub const App = struct {
                 .selected = k == sel,
                 .incomplete = n.flags.incomplete,
                 .shared = n.flags.shared,
+                .alias_of = if (n.flags.alias) try app.aliasPath(arena, k) else "",
             };
         }
         return out;

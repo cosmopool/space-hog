@@ -217,7 +217,10 @@ fn drawColumn(arena: Allocator, win: vaxis.Window, rows: []const core.Row, offse
         if (r.selected) win.child(.{ .y_off = y, .height = 1 }).fill(.{ .style = style });
         var buf: [16]u8 = undefined;
         const size = if (r.unscanned) "" else fmtSize(&buf, r.size);
-        const size_text = try std.fmt.allocPrint(arena, "{s}{s}{s} ", .{ size, if (r.incomplete) "?" else "", if (r.shared) "~" else "" });
+        const size_text = if (r.alias_of.len > 0)
+            try std.fmt.allocPrint(arena, "= {s} ", .{try clean(arena, r.alias_of)})
+        else
+            try std.fmt.allocPrint(arena, "{s}{s}{s} ", .{ size, if (r.incomplete) "?" else "", if (r.shared) "~" else "" });
         const size_w: u16 = @intCast(@min(size_text.len, win.width / 2));
         const name_w = win.width - size_w;
         const name = try clean(arena, r.name);

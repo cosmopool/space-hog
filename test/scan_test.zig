@@ -172,3 +172,54 @@ test "files with several hardlinks are flagged shared by the scan" {
         try std.testing.expectEqual(want, r.shared);
     }
 }
+
+test "macOS firmlink: the same directory reached via /Users and /System/Volumes/Data is counted once" {
+    if (@import("builtin").os.tag != .macos) return error.SkipZigTest;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(io, .{ .sub_path = "blob", .data = &@as([200 * 1024]u8, @splat('b')) });
+    var buf: [4096]u8 = undefined;
+    const real = try absTmp(&tmp, &buf);
+    const twin = try std.fmt.allocPrint(gpa, "/System/Volumes/Data{s}", .{real});
+    defer gpa.free(twin);
+    // Only meaningful when the temp dir lives on the data volume behind a firmlink.
+    if (try duBytes(twin) != try duBytes(real) or !std.mem.startsWith(u8, real, "/Users/")) return error.SkipZigTest;
+
+    // Build "/" with both chains down to the temp dir, then scan both leaves.
+    var app = try core.App.init(gpa, "/");
+    defer app.deinit();
+    var leaves: [2]core.NodeId = undefined;
+    for ([_][]const u8{ real, twin }, &leaves) |p, *leaf| {
+        var node = app.root;
+        var it = std.mem.tokenizeScalar(u8, p, '/');
+        while (it.next()) |part| {
+            var found: core.NodeId = .nil;
+            var ch = app.tree.get(node).first_child;
+            while (ch != .nil) : (ch = app.tree.get(ch).next_sibling) {
+                if (std.mem.eql(u8, app.tree.name(ch), part)) found = ch;
+            }
+            node = if (found != .nil) found else (try app.addDir(node, &.{.{ .name = part, .kind = .dir, .size = 0 }}))[0];
+        }
+        leaf.* = node;
+    }
+    var dummy: u8 = 0;
+    var s = scan.Scanner.init(gpa, io, &app, .{ .ctx = &dummy, .func = Done.noop });
+    defer s.deinit();
+    s.lock();
+    try s.pushLocked(&leaves);
+    s.unlock();
+    try s.start(2);
+    while (true) {
+        s.lock();
+        const done = app.scan_done;
+        s.unlock();
+        if (done) break;
+        try std.Io.sleep(io, .fromMilliseconds(5), .awake);
+    }
+    const a = app.tree.get(leaves[0]);
+    const b = app.tree.get(leaves[1]);
+    try std.testing.expect(a.flags.alias != b.flags.alias);
+    const counted = if (a.flags.alias) b else a;
+    try std.testing.expect(counted.size >= 200 * 1024);
+    try std.testing.expectEqual(counted.size, app.tree.get(app.root).size);
+}

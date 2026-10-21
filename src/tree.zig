@@ -22,7 +22,10 @@ pub const Flags = packed struct(u8) {
     incomplete: bool = false,
     /// This node or a descendant is a file with other hardlinks: deleting it may free less than its size.
     shared: bool = false,
-    _pad: u4 = 0,
+    /// Another path to a directory already in the tree (same dev+inode, e.g. a macOS firmlink). Not scanned,
+    /// counted as 0 bytes; `App.aliases` holds the path that is counted.
+    alias: bool = false,
+    _pad: u3 = 0,
 };
 
 pub const Node = struct {

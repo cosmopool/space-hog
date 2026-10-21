@@ -731,3 +731,36 @@ test "hardlinked files mark their row and every ancestor, and the delete prompt 
     v = try f.view();
     try expect(!v.prompt.?.shared);
 }
+
+test "an alias directory counts 0, shows the counted path, can't be entered, trash/delete refused" {
+    var f = try Fixture.init("/");
+    defer f.deinit();
+    try f.add(&.{}, &.{ dir("Users", 0), dir("System", 0) });
+    try f.add(&.{"Users"}, &.{dir("me", 0)});
+    try f.add(&.{ "Users", "me" }, &.{file("big", 1000)});
+    try f.add(&.{"System"}, &.{dir("Data", 0)});
+    try f.add(&.{ "System", "Data" }, &.{dir("me", 0)});
+    const me = f.child(f.app.root, "Users");
+    const dup = f.child(f.child(f.child(f.app.root, "System"), "Data"), "me");
+    _ = try f.app.addDir(dup, &.{file("big", 1000)}); // arrived before the alias was known
+    try f.app.markAlias(dup, f.child(me, "me"));
+
+    var v = try f.view();
+    try expectEqual(@as(u64, 1000), v.size);
+    try expectNames(v.current, &.{ "Users", "System" });
+    try expectEqual(@as(u64, 0), v.current[1].size);
+
+    _ = try f.keys("jll");
+    v = try f.view();
+    try expectEqualStrings("/System/Data", v.path);
+    try expectEqualStrings("/Users/me", v.current[0].alias_of);
+    try expectEqual(core.Command.none, try f.keys("l"));
+    try expectEqualStrings("/System/Data", (try f.view()).path);
+    try expectEqual(core.Command.none, try f.keys("x"));
+    try expectEqual(core.Command.none, try f.keys("X"));
+    try expect((try f.view()).prompt == null);
+    _ = try f.keys("!");
+    const log = (try f.view()).log;
+    try expectEqual(@as(usize, 2), log.len);
+    try expectEqualStrings("trash refused for /System/Data/me: same directory as /Users/me; use that path", log[0]);
+}

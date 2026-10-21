@@ -24,6 +24,9 @@ pub const Scanner = struct {
     stack: std.ArrayList(core.NodeId) = .empty,
     /// (dev, ino) of multi-link files already counted → the directory that counted it.
     links: std.AutoHashMapUnmanaged([2]u64, core.NodeId) = .empty,
+    /// (dev, ino) of every directory in the tree → its node. A second path to the same directory (macOS firmlinks
+    /// like /Users vs /System/Volumes/Data/Users, bind mounts) becomes an alias instead of being scanned again.
+    dirs: std.AutoHashMapUnmanaged([2]u64, core.NodeId) = .empty,
     active: usize = 0,
     shutdown: bool = false,
     idle_reported: bool = true,
@@ -59,6 +62,7 @@ pub const Scanner = struct {
         s.gpa.free(s.threads);
         s.stack.deinit(s.gpa);
         s.links.deinit(s.gpa);
+        s.dirs.deinit(s.gpa);
     }
 
     pub fn lock(s: *Scanner) void {
@@ -67,6 +71,17 @@ pub const Scanner = struct {
 
     pub fn unlock(s: *Scanner) void {
         s.mutex.unlock(s.io);
+    }
+
+    /// Records the dev+inode of a directory that entered the tree without being listed by the scan (the scan root,
+    /// or a new root after re-rooting). Caller holds the lock.
+    pub fn registerLocked(s: *Scanner, id: core.NodeId) Allocator.Error!void {
+        const p = try s.gpa.dupeSentinel(u8, try s.app.path(id), 0);
+        defer s.gpa.free(p);
+        var st: Stat = undefined;
+        if (lstatAt(c.AT.FDCWD, p, &st) != 0) return;
+        const gop = try s.dirs.getOrPut(s.gpa, .{ st.dev, st.ino });
+        if (!gop.found_existing or s.app.tree.isDetached(gop.value_ptr.*)) gop.value_ptr.* = id;
     }
 
     /// Queues directories to scan. Caller must hold the lock.
@@ -118,8 +133,21 @@ pub const Scanner = struct {
         s.unlock();
     }
 
+    /// Claims directory `key` for `id`. Returns the existing live owner if another node already has it.
+    fn claimDir(s: *Scanner, key: [2]u64, id: core.NodeId) Allocator.Error!?core.NodeId {
+        const gop = try s.dirs.getOrPut(s.gpa, key);
+        if (gop.found_existing and gop.value_ptr.* != id and !s.app.tree.isDetached(gop.value_ptr.*) and
+            !s.app.tree.get(gop.value_ptr.*).flags.alias) return gop.value_ptr.*;
+        gop.value_ptr.* = id;
+        return null;
+    }
+
     /// Caller holds the lock.
     fn feed(s: *Scanner, dir: core.NodeId, batch: *Batch, err: ?ReadError, dir_path: []const u8) Allocator.Error!void {
+        if (batch.self) |key| {
+            // This directory was already reached through another path: keep that one, alias this one.
+            if (try s.claimDir(key, dir)) |owner| return s.app.markAlias(dir, owner);
+        }
         batch.entries.clearRetainingCapacity();
         for (batch.records.items) |r| {
             var size = r.size;
@@ -131,7 +159,18 @@ pub const Scanner = struct {
             try batch.entries.append(s.gpa, .{ .name = batch.names.items[r.off..][0..r.len], .kind = r.kind, .size = size, .shared = r.link != null });
         }
         const ids = try s.app.addDir(dir, batch.entries.items);
-        try s.pushLocked(ids);
+        // addDir returns the new directories in listing order; alias the ones already in the tree.
+        batch.to_scan.clearRetainingCapacity();
+        var next: usize = 0;
+        for (batch.records.items) |r| {
+            if (r.kind != .dir or next == ids.len) continue;
+            const id = ids[next];
+            next += 1;
+            if (try s.claimDir(.{ r.dev, r.ino }, id)) |owner| {
+                try s.app.markAlias(id, owner);
+            } else try batch.to_scan.append(s.gpa, id);
+        }
+        try s.pushLocked(batch.to_scan.items);
         if (err) |e| {
             var buf: [4096]u8 = undefined;
             const msg = std.fmt.bufPrint(&buf, "{s}: {s}", .{ dir_path, @errorName(e) }) catch dir_path;
@@ -147,15 +186,19 @@ pub const Scanner = struct {
 };
 
 /// One directory's entries. Names are offsets into `names`, which grows while reading.
-const Record = struct { off: usize, len: usize, kind: core.Kind, size: u64, link: ?[2]u64 };
+const Record = struct { off: usize, len: usize, kind: core.Kind, size: u64, link: ?[2]u64, dev: u64, ino: u64 };
 
 const Batch = struct {
+    /// dev+inode of the directory itself.
+    self: ?[2]u64 = null,
+    to_scan: std.ArrayList(core.NodeId) = .empty,
     records: std.ArrayList(Record) = .empty,
     entries: std.ArrayList(core.Entry) = .empty,
     names: std.ArrayList(u8) = .empty,
     skipped: std.ArrayList([2]usize) = .empty,
 
     fn reset(b: *Batch) void {
+        b.self = null;
         b.records.clearRetainingCapacity();
         b.names.clearRetainingCapacity();
         b.skipped.clearRetainingCapacity();
@@ -163,6 +206,7 @@ const Batch = struct {
 
     fn deinit(b: *Batch, gpa: Allocator) void {
         b.records.deinit(gpa);
+        b.to_scan.deinit(gpa);
         b.entries.deinit(gpa);
         b.names.deinit(gpa);
         b.skipped.deinit(gpa);
@@ -180,6 +224,8 @@ fn readDir(gpa: Allocator, path: [:0]const u8, batch: *Batch) ?ReadError {
         return errnoError();
     };
     defer _ = c.closedir(dirp);
+    var self_st: Stat = undefined;
+    if (lstatAt(fd, ".", &self_st) == 0) batch.self = .{ self_st.dev, self_st.ino };
 
     while (c.readdir(dirp)) |ent| {
         const name = direntName(ent);
@@ -207,6 +253,8 @@ fn readDir(gpa: Allocator, path: [:0]const u8, batch: *Batch) ?ReadError {
             .kind = kind,
             .size = st.blocks * 512,
             .link = link,
+            .dev = st.dev,
+            .ino = st.ino,
         }) catch return error.OutOfMemory;
     }
     return null;

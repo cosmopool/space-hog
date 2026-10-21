@@ -14,6 +14,8 @@ pub const Row = struct {
     incomplete: bool = false,
     /// Contains hardlinked files: deleting it may free less than `size`. Shown as `~` after the size.
     shared: bool = false,
+    /// Non-empty for another path to an already counted directory (e.g. a macOS firmlink): that path.
+    alias_of: []const u8 = "",
     /// Listed but never scanned (the real parent of the scan root). Size is unknown.
     unscanned: bool = false,
 };

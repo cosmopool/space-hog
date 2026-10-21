@@ -50,3 +50,24 @@ processes, not just against a stale view.
 **Alternative (not chosen): `rm --one-file-system` behaviour.** Delete everything on the target's
 filesystem and skip the mounted parts. Frees most of the space, but leaves a partly deleted tree and the
 mount point directories behind, which is harder to reason about from the UI.
+
+## D3. One directory reached by two paths is scanned and counted once
+
+**Problem.** On macOS, `/Users`, `/Applications`, `/Library`, ... are firmlinks into the data volume, so
+`/Users/me` and `/System/Volumes/Data/Users/me` are the same directory (same `st_dev` + `st_ino`). Firmlinks
+are not symlinks, so "don't follow symlinks" does not stop it: re-rooting up to `/` scanned and counted the
+home directory twice. Linux bind mounts cause the same thing.
+
+**Chosen: dedupe directories by dev+inode; the second path becomes an alias.** The scanner keeps every
+directory's `(dev, ino)` (from the `lstat` it already does per entry, plus `fstatat(fd, ".")` for the directory
+being read, plus `registerLocked` for roots that enter the tree without being listed). A directory whose key is
+already owned by a live node is marked with `App.markAlias`: it stays listed, dimmed, size 0, shown as
+`= <path that is counted>`; it is not scanned, `l` does not enter it, and `x` / `X` are refused with a log line
+pointing to the counted path. If the owner is rescanned or deleted, the next path found takes ownership.
+
+- Covered by `test/scan_test.zig` "macOS firmlink: ..." (real firmlink, temp dir under `/Users`) and
+  `test/core_test.zig` "an alias directory counts 0, ...".
+- Which of the two paths is counted depends on scan order (first one read wins), like hardlinked files.
+
+**Alternatives (not chosen):** hide the second path entirely; or keep it browsable with its real size but
+excluded from parent totals (needs separate "shown" and "counted" sizes).

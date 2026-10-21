@@ -113,6 +113,7 @@ pub fn execute(gpa: Allocator, io: std.Io, env: Env, app: *core.App, scanner: *s
             try app.moveCursor(if (s.down) n else -n);
         },
         .rerooted => |ids| {
+            try scanner.registerLocked(app.root);
             try scanner.pushLocked(ids);
             try listOuter(gpa, app, listing);
         },
