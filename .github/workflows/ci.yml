@@ -79,15 +79,15 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           mkdir -p dist
-          # musl: fully static. gnu: links the system glibc, built against the oldest glibc our code links
-          # with (x86_64: 2.16, the first with getauxval; aarch64: 2.17, the first with arm64 support).
+          # musl: fully static. gnu: links the system glibc; glibc 2.17 on both architectures (the oldest that
+          # links on x86_64 is 2.16, but 2.17 is the first with arm64 support, and one floor is simpler).
           # macOS: only libSystem, which every Mac has.
           targets=(
             "aarch64-macos           aarch64-macos"
             "x86_64-macos            x86_64-macos"
             "x86_64-linux-musl       x86_64-linux-musl"
             "aarch64-linux-musl      aarch64-linux-musl"
-            "x86_64-linux-gnu.2.16   x86_64-linux-gnu"
+            "x86_64-linux-gnu.2.17   x86_64-linux-gnu"
             "aarch64-linux-gnu.2.17  aarch64-linux-gnu"
           )
           for entry in "${targets[@]}"; do

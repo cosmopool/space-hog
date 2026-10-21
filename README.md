@@ -193,7 +193,7 @@ Notes:
 |---|---|
 | `aarch64-macos` / `x86_64-macos` | Apple Silicon / Intel Macs |
 | `x86_64-linux-musl` / `aarch64-linux-musl` | Any Linux; fully static, no libc needed (Alpine included) |
-| `x86_64-linux-gnu` / `aarch64-linux-gnu` | glibc distributions; needs glibc 2.16+ (x86_64) or 2.17+ (arm64) |
+| `x86_64-linux-gnu` / `aarch64-linux-gnu` | glibc distributions; needs glibc 2.17+ |
 
 On Linux, space-hog needs **kernel 4.11 or newer** (it reads file metadata with `statx`).
 
