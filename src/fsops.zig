@@ -60,8 +60,12 @@ pub fn parseArgs(argv: []const []const u8) error{InvalidJobs}!Args {
             out.path = a;
         }
     }
+    out.jobs = @min(out.jobs, MAX_JOBS);
     return out;
 }
+
+/// Upper bound for `-j`; 0 still means "one per CPU".
+pub const MAX_JOBS = 256;
 
 /// Reads the keymap file if present; problems go to the app's log, never fail startup.
 pub fn loadKeymap(gpa: Allocator, io: std.Io, env: Env, app: *core.App) Allocator.Error!void {

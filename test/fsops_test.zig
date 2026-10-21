@@ -242,6 +242,7 @@ test "parseArgs: flags, -j forms, last path wins, bad -j rejected" {
     const c = try fsops.parseArgs(&.{"space-hog"});
     try expect(!c.dry_run and c.path == null and c.jobs == 0);
     try std.testing.expectError(error.InvalidJobs, fsops.parseArgs(&.{ "space-hog", "-j", "abc" }));
+    try expectEqual(@as(usize, fsops.MAX_JOBS), (try fsops.parseArgs(&.{ "space-hog", "-j", "100000" })).jobs);
 }
 
 test "Env: XDG values that are empty or relative are ignored" {
