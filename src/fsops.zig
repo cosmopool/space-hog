@@ -149,7 +149,8 @@ fn parentsUnchanged(gpa: Allocator, app: *core.App, scanner: *scan.Scanner, id: 
 }
 
 fn logFailure(gpa: Allocator, app: *core.App, what: []const u8, path: []const u8, e: anyerror) !void {
-    const msg = try std.fmt.allocPrint(gpa, "{s} failed for {s}: {s}", .{ what, path, @errorName(e) });
+    const hint = if (e == error.TrashOnOtherVolume) " (only your home volume's trash is used; X deletes permanently)" else "";
+    const msg = try std.fmt.allocPrint(gpa, "{s} failed for {s}: {s}{s}", .{ what, path, @errorName(e), hint });
     defer gpa.free(msg);
     try app.logError(msg);
 }
