@@ -33,3 +33,20 @@ has the recorded `dev + inode`; then delete relative to the final directory fd (
 
 Switch to the alternative if deletes ever need to be safe against concurrent modification by other
 processes, not just against a stale view.
+
+## D2. Trash / rm -r never cross into another filesystem
+
+**Problem.** The scan crosses mount points like `du` does, so a directory can contain a mounted volume.
+`rm -r` on it would also delete the volume's contents.
+
+**Chosen: refuse and log.** Before trash or `rm -r`, `fsops.noMountInside` walks the target subtree on disk
+(no symlinks followed) and refuses if any directory has a different `st_dev` than the target. The log says
+`<action> refused for <path>: contains mount point <child>`. Scanning still crosses mounts.
+
+- Verified by hand on macOS with a disk image attached inside the target (`hdiutil attach -mountpoint`);
+  not in the automated suite because creating a mount needs privileges or OS tools.
+- Cost: one extra walk of the target subtree before deleting.
+
+**Alternative (not chosen): `rm --one-file-system` behaviour.** Delete everything on the target's
+filesystem and skip the mounted parts. Frees most of the space, but leaves a partly deleted tree and the
+mount point directories behind, which is harder to reason about from the UI.

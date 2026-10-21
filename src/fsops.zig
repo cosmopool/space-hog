@@ -88,12 +88,14 @@ pub fn execute(gpa: Allocator, io: std.Io, env: Env, app: *core.App, scanner: *s
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
             if (!try parentsUnchanged(gpa, app, scanner, id, path, "trash")) return false;
+            if (!try noMountInside(gpa, app, path, "trash")) return false;
             if (trash(gpa, env.trash_root, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
         },
         .delete => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
             if (!try parentsUnchanged(gpa, app, scanner, id, path, "rm -r")) return false;
+            if (!try noMountInside(gpa, app, path, "rm -r")) return false;
             if (std.Io.Dir.cwd().deleteTree(io, path)) |_| app.markDeleted(id) else |e| {
                 try logFailure(gpa, app, "rm -r", path, e);
                 // Part of it may be gone: rescan so the tree matches the disk.
@@ -143,6 +145,41 @@ fn parentsUnchanged(gpa: Allocator, app: *core.App, scanner: *scan.Scanner, id: 
             const again = try app.rescan(app.tree.get(id).parent);
             if (again != .nil) try scanner.pushLocked(&.{again});
             return false;
+        }
+    }
+    return true;
+}
+
+/// The scan crosses filesystems like `du`, but deleting must not: refuse if anything under `path` lives on a
+/// different device (a mount point inside the target). Walks the subtree on disk without following symlinks.
+fn noMountInside(gpa: Allocator, app: *core.App, path: []const u8, what: []const u8) !bool {
+    var top: scan.Stat = undefined;
+    const top_z = try gpa.dupeSentinel(u8, path, 0);
+    defer gpa.free(top_z);
+    if (scan.lstatAt(c.AT.FDCWD, top_z, &top) != 0 or (top.mode & c.S.IFMT) != c.S.IFDIR) return true;
+
+    var stack: std.ArrayList([:0]u8) = .empty;
+    defer {
+        for (stack.items) |p| gpa.free(p);
+        stack.deinit(gpa);
+    }
+    try stack.append(gpa, try gpa.dupeSentinel(u8, path, 0));
+    var listing: scan.Listing = .{};
+    defer listing.deinit(gpa);
+    while (stack.pop()) |dir| {
+        defer gpa.free(dir);
+        for (try listing.read(gpa, dir)) |e| {
+            if (e.kind != .dir) continue;
+            const child = try std.fmt.allocPrintSentinel(gpa, "{s}/{s}", .{ dir, e.name }, 0);
+            var st: scan.Stat = undefined;
+            if (scan.lstatAt(c.AT.FDCWD, child, &st) == 0 and st.dev != top.dev) {
+                defer gpa.free(child);
+                const msg = try std.fmt.allocPrint(gpa, "{s} refused for {s}: contains mount point {s}", .{ what, path, child });
+                defer gpa.free(msg);
+                try app.logError(msg);
+                return false;
+            }
+            try stack.append(gpa, child);
         }
     }
     return true;
