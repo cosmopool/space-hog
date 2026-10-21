@@ -128,7 +128,7 @@ pub const Scanner = struct {
                 // Counted once, unless the directory that counted it was deleted or rescanned since.
                 if (gop.found_existing and !s.app.tree.isDetached(gop.value_ptr.*)) size = 0 else gop.value_ptr.* = dir;
             }
-            try batch.entries.append(s.gpa, .{ .name = batch.names.items[r.off..][0..r.len], .kind = r.kind, .size = size });
+            try batch.entries.append(s.gpa, .{ .name = batch.names.items[r.off..][0..r.len], .kind = r.kind, .size = size, .shared = r.link != null });
         }
         const ids = try s.app.addDir(dir, batch.entries.items);
         try s.pushLocked(ids);

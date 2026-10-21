@@ -226,7 +226,7 @@ fn drawColumn(arena: Allocator, win: vaxis.Window, rows: []const core.Row, offse
         if (r.selected) win.child(.{ .y_off = y, .height = 1 }).fill(.{ .style = style });
         var buf: [16]u8 = undefined;
         const size = if (r.unscanned) "" else fmtSize(&buf, r.size);
-        const size_text = try std.fmt.allocPrint(arena, "{s}{s} ", .{ size, if (r.incomplete) "?" else "" });
+        const size_text = try std.fmt.allocPrint(arena, "{s}{s}{s} ", .{ size, if (r.incomplete) "?" else "", if (r.shared) "~" else "" });
         const size_w: u16 = @intCast(@min(size_text.len, win.width / 2));
         const name_w = win.width - size_w;
         const name = try clean(arena, r.name);
@@ -280,7 +280,7 @@ fn drawPrompt(arena: Allocator, win: vaxis.Window, p: core.view.Prompt, dry_run:
         .x_off = @intCast((win.width - w) / 2),
         .y_off = @intCast(win.height / 2 -| 3),
         .width = w,
-        .height = 6,
+        .height = 7,
         .border = .{ .where = .all, .style = .{ .fg = DANGER } },
     });
     box.clear();
@@ -288,7 +288,8 @@ fn drawPrompt(arena: Allocator, win: vaxis.Window, p: core.view.Prompt, dry_run:
     _ = box.printSegment(.{ .text = if (dry_run) " DRY RUN: would delete (rm -r)" else " Delete permanently (rm -r)?", .style = .{ .bold = true } }, .{ .wrap = .none });
     _ = box.printSegment(.{ .text = try clean(arena, p.path) }, .{ .wrap = .none, .row_offset = 1, .col_offset = 1 });
     _ = box.printSegment(.{ .text = fmtSize(&buf, p.size) }, .{ .wrap = .none, .row_offset = 2, .col_offset = 1 });
-    _ = box.printSegment(.{ .text = " y delete   any other key cancels", .style = .{ .fg = DIM } }, .{ .wrap = .none, .row_offset = 3 });
+    if (p.shared) _ = box.printSegment(.{ .text = " some files are hardlinked elsewhere; may free less", .style = .{ .fg = WARN } }, .{ .wrap = .none, .row_offset = 3 });
+    _ = box.printSegment(.{ .text = " y delete   any other key cancels", .style = .{ .fg = DIM } }, .{ .wrap = .none, .row_offset = if (p.shared) 4 else 3 });
 }
 
 fn hline(win: vaxis.Window, y: u16, w: u16) void {

@@ -155,3 +155,20 @@ fn duOwnBlocks(root: []const u8) !u64 {
     if (std.c.fstatat(std.c.AT.FDCWD, z, &st, 0) != 0) return error.StatFailed;
     return @as(u64, @intCast(st.blocks)) * 512;
 }
+
+test "files with several hardlinks are flagged shared by the scan" {
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try makeTree(tmp.dir, true);
+    var buf: [4096]u8 = undefined;
+    const root = try absTmp(&tmp, &buf);
+    var app = try scanTree(root, 2);
+    defer app.deinit();
+    var arena: std.heap.ArenaAllocator = .init(gpa);
+    defer arena.deinit();
+    const v = try app.view(arena.allocator());
+    for (v.current) |r| {
+        const want = std.mem.eql(u8, r.name, "a") or std.mem.eql(u8, r.name, "b");
+        try std.testing.expectEqual(want, r.shared);
+    }
+}

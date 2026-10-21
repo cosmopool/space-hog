@@ -105,8 +105,9 @@ pub const App = struct {
         if (dir == .nil or app.tree.isDetached(dir)) return app.scratch.items;
         var sum: u64 = 0;
         for (entries) |e| {
-            const id = try app.tree.add(app.gpa, e.name, .{ .kind = e.kind, .size = e.size });
+            const id = try app.tree.add(app.gpa, e.name, .{ .kind = e.kind, .size = e.size, .flags = .{ .shared = e.shared } });
             app.tree.link(dir, id);
+            if (e.shared) app.markShared(dir);
             if (e.kind == .dir) try app.scratch.append(app.gpa, id);
             sum +|= e.size;
         }
@@ -127,6 +128,13 @@ pub const App = struct {
             while (it != .nil) : (it = parents[it.index()]) flags[it.index()].incomplete = true;
         }
         try app.logError(msg);
+    }
+
+    fn markShared(app: *App, dir: NodeId) void {
+        const flags = app.tree.nodes.items(.flags);
+        const parents = app.tree.nodes.items(.parent);
+        var it = dir;
+        while (it != .nil and !flags[it.index()].shared) : (it = parents[it.index()]) flags[it.index()].shared = true;
     }
 
     pub fn logError(app: *App, msg: []const u8) Allocator.Error!void {
@@ -263,7 +271,8 @@ pub const App = struct {
             .prompt => {
                 var tp: std.ArrayList(u8) = .empty;
                 try app.tree.fullPath(app.prompt_target, &tp, arena);
-                v.prompt = .{ .path = tp.items, .size = app.tree.get(app.prompt_target).size };
+                const t = app.tree.get(app.prompt_target);
+                v.prompt = .{ .path = tp.items, .size = t.size, .shared = t.flags.shared };
             },
             .log => {
                 v.mode = .log;
@@ -465,6 +474,7 @@ pub const App = struct {
                 .style = style,
                 .selected = k == sel,
                 .incomplete = n.flags.incomplete,
+                .shared = n.flags.shared,
             };
         }
         return out;

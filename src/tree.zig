@@ -20,7 +20,9 @@ pub const Flags = packed struct(u8) {
     unreadable: bool = false,
     /// Size is partial: this node or a descendant was unreadable.
     incomplete: bool = false,
-    _pad: u5 = 0,
+    /// This node or a descendant is a file with other hardlinks: deleting it may free less than its size.
+    shared: bool = false,
+    _pad: u4 = 0,
 };
 
 pub const Node = struct {
@@ -41,6 +43,8 @@ pub const Entry = struct {
     kind: Kind,
     /// Bytes on disk. 0 for a hardlink already counted elsewhere.
     size: u64,
+    /// A file with more than one hardlink.
+    shared: bool = false,
 };
 
 pub const Tree = struct {

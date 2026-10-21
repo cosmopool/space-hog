@@ -714,3 +714,19 @@ test "keymap: an empty list unbinds an action; a shadowed prefix binding is repo
     try expectEqual(@as(usize, 1), log.len);
     try expectEqualStrings("keymap: 'g' for 'down' never fires: 'gg' for 'top' starts with it", log[0]);
 }
+
+test "hardlinked files mark their row and every ancestor, and the delete prompt warns" {
+    var f = try Fixture.init("/r");
+    defer f.deinit();
+    try f.add(&.{}, &.{ dir("a", 1), dir("b", 1) });
+    try f.add(&.{"a"}, &.{.{ .name = "linked", .kind = .file, .size = 100, .shared = true }});
+    try f.add(&.{"b"}, &.{file("plain", 50)});
+    var v = try f.view();
+    try expect(v.current[0].shared and !v.current[1].shared);
+    _ = try f.keys("X");
+    try expect((try f.view()).prompt.?.shared);
+    _ = try f.keys("n");
+    _ = try f.keys("jX");
+    v = try f.view();
+    try expect(!v.prompt.?.shared);
+}

@@ -12,6 +12,8 @@ pub const Row = struct {
     selected: bool = false,
     /// Size is partial (unreadable somewhere below). Shown as `?` after the size.
     incomplete: bool = false,
+    /// Contains hardlinked files: deleting it may free less than `size`. Shown as `~` after the size.
+    shared: bool = false,
     /// Listed but never scanned (the real parent of the scan root). Size is unknown.
     unscanned: bool = false,
 };
@@ -21,6 +23,7 @@ pub const Mode = enum { normal, log };
 pub const Prompt = struct {
     path: []const u8,
     size: u64,
+    shared: bool = false,
 };
 
 pub const Status = struct {
