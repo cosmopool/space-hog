@@ -54,6 +54,8 @@ pub const App = struct {
     pending: keymap.Seq = .{},
     mode: Mode = .normal,
     prompt_target: NodeId = .nil,
+    /// `--dry-run`: trash and delete are only logged; no command that touches the disk is ever returned.
+    dry_run: bool = false,
     log: std.ArrayList([]u8) = .empty,
     log_cursor: usize = 0,
     /// Unscanned listing of the root's real parent directory.
@@ -62,6 +64,8 @@ pub const App = struct {
     files: u64 = 0,
     bytes: u64 = 0,
     scan_done: bool = false,
+    /// Log entries that are dry-run notes, not errors.
+    dry_logged: usize = 0,
     scratch: std.ArrayList(NodeId) = .empty,
     sorted: std.ArrayList(NodeId) = .empty,
     path_buf: std.ArrayList(u8) = .empty,
@@ -114,6 +118,7 @@ pub const App = struct {
 
     /// `dir` could not be (fully) read: its size is partial and `msg` goes to the error log.
     pub fn dirError(app: *App, dir: NodeId, msg: []const u8) Allocator.Error!void {
+        if (dir != .nil and app.tree.isDetached(dir)) return; // deleted or rescanned meanwhile
         if (dir != .nil) {
             const flags = app.tree.nodes.items(.flags);
             const parents = app.tree.nodes.items(.parent);
@@ -185,7 +190,7 @@ pub const App = struct {
             app.mode = .normal;
             const target = app.prompt_target;
             app.prompt_target = .nil;
-            if (key.code == 'y' and !key.ctrl and !app.tree.isDetached(target)) return .{ .delete = target };
+            if (key.code == 'y' and !key.ctrl and !app.tree.isDetached(target)) return app.destroy(.delete, target);
             return .none;
         }
         var seq = app.pending;
@@ -222,7 +227,8 @@ pub const App = struct {
             .files = app.files,
             .bytes = app.bytes,
             .scan_done = app.scan_done,
-            .errors = app.log.items.len,
+            .errors = app.log.items.len - app.dry_logged,
+            .dry_run = app.dry_run,
             .pending = try pendingText(arena, app.pending),
         };
 
@@ -308,7 +314,7 @@ pub const App = struct {
             .trash => {
                 const sel = try app.selected();
                 if (sel == .nil) return .none;
-                return .{ .trash = sel };
+                return app.destroy(.trash, sel);
             },
             .delete => {
                 const sel = try app.selected();
@@ -316,11 +322,7 @@ pub const App = struct {
                 app.mode = .prompt;
                 app.prompt_target = sel;
             },
-            .rescan => {
-                app.clearDir(app.cwd);
-                app.scan_done = false;
-                return .{ .rescan = app.cwd };
-            },
+            .rescan => return .{ .rescan = try app.rescan(app.cwd) },
             .log => {
                 app.mode = .log;
                 app.log_cursor = 0;
@@ -367,21 +369,55 @@ pub const App = struct {
         return .{ .rerooted = ids };
     }
 
-    /// Drops the contents of `dir` (for a rescan).
-    fn clearDir(app: *App, dir: NodeId) void {
-        const nodes = &app.tree.nodes;
-        var sum: u64 = 0;
-        var it = nodes.items(.first_child)[dir.index()];
-        while (it != .nil) : (it = nodes.items(.next_sibling)[it.index()]) {
-            if (nodes.items(.flags)[it.index()].deleted) continue;
-            sum +|= nodes.items(.size)[it.index()];
-            nodes.items(.flags)[it.index()].deleted = true;
+    /// The single place a trash/delete command is produced. In dry run it is logged instead.
+    fn destroy(app: *App, comptime what: enum { trash, delete }, id: NodeId) Allocator.Error!Command {
+        if (!app.dry_run) return @unionInit(Command, @tagName(what), id);
+        var p: std.ArrayList(u8) = .empty;
+        defer p.deinit(app.gpa);
+        try app.tree.fullPath(id, &p, app.gpa);
+        const msg = try std.fmt.allocPrint(app.gpa, "dry run: would {s} {s} ({d} bytes)", .{
+            if (what == .trash) "trash" else "rm -r", p.items, app.tree.get(id).size,
+        });
+        errdefer app.gpa.free(msg);
+        try app.log.append(app.gpa, msg);
+        app.dry_logged += 1;
+        return .none;
+    }
+
+    /// Replaces `dir` with a fresh, empty node of the same name (for a rescan). Results still in flight for the
+    /// old node land on a detached node and are ignored, so nothing is counted twice.
+    fn replaceDir(app: *App, dir: NodeId) Allocator.Error!NodeId {
+        const old = app.tree.get(dir);
+        var children: u64 = 0;
+        var it = old.first_child;
+        while (it != .nil) : (it = app.tree.get(it).next_sibling) {
+            if (!app.tree.get(it).flags.deleted) children +|= app.tree.get(it).size;
         }
-        app.tree.subSize(dir, sum);
-        nodes.items(.first_child)[dir.index()] = .nil;
-        nodes.items(.flags)[dir.index()].unreadable = false;
-        nodes.items(.flags)[dir.index()].incomplete = false;
-        app.cursor = .nil;
+        const own = old.size -| children;
+        const new = try app.tree.add(app.gpa, app.tree.name(dir), .{ .kind = .dir, .size = own });
+        if (old.parent != .nil) {
+            app.tree.subSize(old.parent, old.size);
+            app.tree.unlink(dir);
+            app.tree.link(old.parent, new);
+            app.tree.addSize(old.parent, own);
+        } else {
+            app.root = new;
+        }
+        app.tree.nodes.items(.flags)[dir.index()].deleted = true;
+        if (app.cwd == dir or app.isUnder(app.cwd, dir)) {
+            app.cwd = new;
+            app.cursor = .nil;
+        }
+        if (app.cursor == dir) app.cursor = new;
+        return new;
+    }
+
+    /// Drops `dir`'s contents and returns the node to scan again. Used by `r` and by the platform after a
+    /// partially failed delete, so the tree matches the disk again.
+    pub fn rescan(app: *App, dir: NodeId) Allocator.Error!NodeId {
+        if (dir == .nil or app.tree.isDetached(dir) or app.tree.get(dir).kind != .dir) return .nil;
+        app.scan_done = false;
+        return app.replaceDir(dir);
     }
 
     fn selected(app: *App) Allocator.Error!NodeId {

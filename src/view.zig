@@ -27,6 +27,8 @@ pub const Status = struct {
     files: u64 = 0,
     bytes: u64 = 0,
     scan_done: bool = false,
+    /// Started with `--dry-run`: nothing is ever trashed or deleted.
+    dry_run: bool = false,
     errors: usize = 0,
     /// Keys typed so far of an unfinished sequence (e.g. "g").
     pending: []const u8 = "",

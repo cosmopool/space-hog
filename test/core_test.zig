@@ -638,3 +638,39 @@ fn checkInvariants(f: *Fixture) !void {
     for (v.current) |r| children += r.size;
     try expect(children <= v.size);
 }
+
+// ---- dry run ----
+
+test "dry run: x and X+y never return trash/delete, they log what would happen" {
+    var f = try Fixture.init("/r");
+    defer f.deinit();
+    f.app.dry_run = true;
+    try f.add(&.{}, &.{ dir("a", 90), dir("b", 60) });
+
+    try expectEqual(core.Command.none, try f.keys("x"));
+    try expectEqual(core.Command.none, try f.keys("jXy"));
+    const v = try f.view();
+    try expect(v.status.dry_run);
+    try expectEqual(@as(usize, 0), v.status.errors);
+    try expectNames(v.current, &.{ "a", "b" });
+    try expectEqual(@as(u64, 150), v.size);
+    _ = try f.keys("!");
+    const log = (try f.view()).log;
+    try expectEqual(@as(usize, 2), log.len);
+    try expectEqualStrings("dry run: would trash /r/a (90 bytes)", log[0]);
+    try expectEqualStrings("dry run: would rm -r /r/b (60 bytes)", log[1]);
+}
+
+test "dry run: random key sequences never produce a destructive command" {
+    var prng: std.Random.DefaultPrng = .init(7);
+    const rnd = prng.random();
+    var f = try Fixture.init("/r");
+    defer f.deinit();
+    f.app.dry_run = true;
+    try f.add(&.{}, &.{ dir("a", 9), dir("b", 8), file("c", 7) });
+    try f.add(&.{"a"}, &.{ file("a1", 3), dir("a2", 2) });
+    for (0..2000) |_| {
+        const cmd = try f.app.handleKey(Key.char("jkhlxXygG"[rnd.uintLessThan(usize, 9)]));
+        try expect(cmd != .trash and cmd != .delete);
+    }
+}

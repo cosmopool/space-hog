@@ -22,8 +22,8 @@ pub const Scanner = struct {
     mutex: Io.Mutex = .init,
     cond: Io.Condition = .init,
     stack: std.ArrayList(core.NodeId) = .empty,
-    /// (dev, ino) of multi-link files already counted.
-    links: std.AutoHashMapUnmanaged([2]u64, void) = .empty,
+    /// (dev, ino) of multi-link files already counted → the directory that counted it.
+    links: std.AutoHashMapUnmanaged([2]u64, core.NodeId) = .empty,
     active: usize = 0,
     shutdown: bool = false,
     idle_reported: bool = true,
@@ -36,8 +36,18 @@ pub const Scanner = struct {
     /// Starts `n` worker threads (0 = CPU count).
     pub fn start(s: *Scanner, n: usize) !void {
         const count = if (n == 0) std.Thread.getCpuCount() catch 4 else n;
-        s.threads = try s.gpa.alloc(std.Thread, count);
-        for (s.threads) |*t| t.* = try std.Thread.spawn(.{}, worker, .{s});
+        const threads = try s.gpa.alloc(std.Thread, count);
+        var started: usize = 0;
+        errdefer {
+            s.lock();
+            s.shutdown = true;
+            s.cond.broadcast(s.io);
+            s.unlock();
+            for (threads[0..started]) |t| t.join();
+            s.gpa.free(threads);
+        }
+        while (started < count) : (started += 1) threads[started] = try std.Thread.spawn(.{}, worker, .{s});
+        s.threads = threads;
     }
 
     pub fn deinit(s: *Scanner) void {
@@ -115,7 +125,8 @@ pub const Scanner = struct {
             var size = r.size;
             if (r.link) |key| {
                 const gop = try s.links.getOrPut(s.gpa, key);
-                if (gop.found_existing) size = 0;
+                // Counted once, unless the directory that counted it was deleted or rescanned since.
+                if (gop.found_existing and !s.app.tree.isDetached(gop.value_ptr.*)) size = 0 else gop.value_ptr.* = dir;
             }
             try batch.entries.append(s.gpa, .{ .name = batch.names.items[r.off..][0..r.len], .kind = r.kind, .size = size });
         }
@@ -126,11 +137,11 @@ pub const Scanner = struct {
             const msg = std.fmt.bufPrint(&buf, "{s}: {s}", .{ dir_path, @errorName(e) }) catch dir_path;
             try s.app.dirError(dir, msg);
         }
-        for (batch.skipped.items) |name_range| {
+        if (batch.skipped.items.len > 0) {
+            // One line per directory (e.g. read but no search permission makes every entry fail).
             var buf: [4096]u8 = undefined;
-            const name = batch.names.items[name_range[0]..][0..name_range[1]];
-            const msg = std.fmt.bufPrint(&buf, "{s}/{s}: vanished or unreadable", .{ dir_path, name }) catch dir_path;
-            try s.app.logError(msg);
+            const msg = std.fmt.bufPrint(&buf, "{s}: {d} entries vanished or could not be read", .{ dir_path, batch.skipped.items.len }) catch dir_path;
+            try s.app.dirError(dir, msg);
         }
     }
 };

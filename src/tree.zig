@@ -135,21 +135,25 @@ pub const Tree = struct {
 
     /// Writes the full path of `id` (its root's name is an absolute path).
     pub fn fullPath(t: *const Tree, id: NodeId, out: *std.ArrayList(u8), gpa: Allocator) Allocator.Error!void {
-        out.clearRetainingCapacity();
-        var chain: [512]NodeId = undefined;
-        var depth: usize = 0;
+        // Measure first, then fill back to front: no depth limit, one allocation.
         const parents = t.nodes.items(.parent);
+        var len: usize = 0;
         var it = id;
-        while (it != .nil and depth < chain.len) : (it = parents[it.index()]) {
-            chain[depth] = it;
-            depth += 1;
+        while (it != .nil) : (it = parents[it.index()]) {
+            len += t.name(it).len;
+            if (parents[it.index()] != .nil and !std.mem.endsWith(u8, t.name(parents[it.index()]), "/")) len += 1;
         }
-        var i = depth;
-        while (i > 0) {
-            i -= 1;
-            const part = t.name(chain[i]);
-            if (i != depth - 1 and !std.mem.endsWith(u8, out.items, "/")) try out.append(gpa, '/');
-            try out.appendSlice(gpa, part);
+        try out.resize(gpa, len);
+        var end = len;
+        it = id;
+        while (it != .nil) : (it = parents[it.index()]) {
+            const part = t.name(it);
+            end -= part.len;
+            @memcpy(out.items[end..][0..part.len], part);
+            if (parents[it.index()] != .nil and !std.mem.endsWith(u8, t.name(parents[it.index()]), "/")) {
+                end -= 1;
+                out.items[end] = '/';
+            }
         }
     }
 

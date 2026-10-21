@@ -101,7 +101,7 @@ pub const Tui = struct {
         }
 
         try drawStatus(arena, win.child(.{ .y_off = win.height - 1, .height = 1 }), v);
-        if (v.prompt) |p| try drawPrompt(arena, win, p);
+        if (v.prompt) |p| try drawPrompt(arena, win, p, v.status.dry_run);
         try t.vx.render(t.tty.writer());
     }
 
@@ -217,7 +217,9 @@ fn drawStatus(arena: Allocator, win: vaxis.Window, v: core.View) !void {
         try std.fmt.allocPrint(arena, " ✓ {d} files · {s}", .{ v.status.files, bytes })
     else
         try std.fmt.allocPrint(arena, " ⟳ scanning {d} files · {s}", .{ v.status.files, bytes });
-    var col = win.printSegment(.{ .text = left, .style = .{ .fg = if (v.status.scan_done) OK else WARN } }, .{ .wrap = .none }).col;
+    var col: u16 = 0;
+    if (v.status.dry_run) col = win.printSegment(.{ .text = " DRY RUN ", .style = .{ .fg = .{ .index = 0 }, .bg = WARN, .bold = true } }, .{ .wrap = .none }).col;
+    col = win.printSegment(.{ .text = left, .style = .{ .fg = if (v.status.scan_done) OK else WARN } }, .{ .wrap = .none, .col_offset = col }).col;
     if (v.status.errors > 0) {
         const e = try std.fmt.allocPrint(arena, "   ! {d} unreadable", .{v.status.errors});
         col = win.printSegment(.{ .text = e, .style = .{ .fg = DANGER } }, .{ .wrap = .none, .col_offset = col }).col;
@@ -247,7 +249,7 @@ fn drawLog(arena: Allocator, win: vaxis.Window, v: core.View) !void {
     if (v.log.len == 0) _ = win.printSegment(.{ .text = " no errors", .style = .{ .fg = DIM } }, .{ .wrap = .none });
 }
 
-fn drawPrompt(arena: Allocator, win: vaxis.Window, p: core.view.Prompt) !void {
+fn drawPrompt(arena: Allocator, win: vaxis.Window, p: core.view.Prompt, dry_run: bool) !void {
     const w: u16 = @min(win.width -| 4, 60);
     const box = win.child(.{
         .x_off = @intCast((win.width - w) / 2),
@@ -258,7 +260,7 @@ fn drawPrompt(arena: Allocator, win: vaxis.Window, p: core.view.Prompt) !void {
     });
     box.clear();
     var buf: [16]u8 = undefined;
-    _ = box.printSegment(.{ .text = " Delete permanently (rm -r)?", .style = .{ .bold = true } }, .{ .wrap = .none });
+    _ = box.printSegment(.{ .text = if (dry_run) " DRY RUN: would delete (rm -r)" else " Delete permanently (rm -r)?", .style = .{ .bold = true } }, .{ .wrap = .none });
     _ = box.printSegment(.{ .text = try clean(arena, p.path) }, .{ .wrap = .none, .row_offset = 1, .col_offset = 1 });
     _ = box.printSegment(.{ .text = fmtSize(&buf, p.size) }, .{ .wrap = .none, .row_offset = 2, .col_offset = 1 });
     _ = box.printSegment(.{ .text = " y delete   any other key cancels", .style = .{ .fg = DIM } }, .{ .wrap = .none, .row_offset = 3 });

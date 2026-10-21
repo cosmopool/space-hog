@@ -17,6 +17,7 @@ pub fn main(init: std.process.Init) !void {
 
     var app = try core.App.init(gpa, root_path);
     defer app.deinit();
+    app.dry_run = args.dry_run;
     try loadKeymap(gpa, io, env, home, &app);
 
     var tui: tui_mod.Tui = undefined;
@@ -223,16 +224,18 @@ fn loadKeymap(gpa: Allocator, io: std.Io, env: *std.process.Environ.Map, home: [
     try app.loadKeymap(src);
 }
 
-const Args = struct { path: ?[]const u8 = null, jobs: usize = 0 };
+const Args = struct { path: ?[]const u8 = null, jobs: usize = 0, dry_run: bool = false };
 
-/// `space-hog [-j N] [path]`
+/// `space-hog [-n|--dry-run] [-j N] [path]`
 fn parseArgs(arena: Allocator, raw: std.process.Args) !Args {
     const argv = try raw.toSlice(arena);
     var out: Args = .{};
     var i: usize = 1;
     while (i < argv.len) : (i += 1) {
         const a = argv[i];
-        if (std.mem.eql(u8, a, "-j") and i + 1 < argv.len) {
+        if (std.mem.eql(u8, a, "-n") or std.mem.eql(u8, a, "--dry-run")) {
+            out.dry_run = true;
+        } else if (std.mem.eql(u8, a, "-j") and i + 1 < argv.len) {
             i += 1;
             out.jobs = std.fmt.parseInt(usize, argv[i], 10) catch return error.InvalidJobs;
         } else if (std.mem.startsWith(u8, a, "-j")) {
