@@ -674,3 +674,17 @@ test "dry run: random key sequences never produce a destructive command" {
         try expect(cmd != .trash and cmd != .delete);
     }
 }
+
+test "paths stay absolute and exact for trees deeper than 512 levels" {
+    var f = try Fixture.init("/r");
+    defer f.deinit();
+    var d = f.app.root;
+    for (0..700) |_| d = (try f.app.addDir(d, &.{dir("d", 1)}))[0];
+    _ = try f.app.addDir(d, &.{file("leaf", 1)});
+    for (0..701) |_| _ = try f.keys("l");
+    const cmd = try f.keys("x");
+    const p = try f.app.path(cmd.trash);
+    try expect(std.mem.startsWith(u8, p, "/r/d/d/"));
+    try expect(std.mem.endsWith(u8, p, "/d/leaf"));
+    try expectEqual(@as(usize, "/r".len + 700 * "/d".len + "/leaf".len), p.len);
+}

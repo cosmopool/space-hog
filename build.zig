@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     b.step("run", "Run the app").dependOn(&run_cmd.step);
 
     const test_step = b.step("test", "Run tests");
-    for ([_][]const u8{ "test/core_test.zig", "test/scan_test.zig" }) |file| {
+    for ([_][]const u8{ "test/core_test.zig", "test/scan_test.zig", "test/fsops_test.zig" }) |file| {
         const t = b.addTest(.{ .root_module = b.createModule(.{
             .root_source_file = b.path(file),
             .target = target,
