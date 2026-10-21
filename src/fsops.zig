@@ -87,11 +87,13 @@ pub fn execute(gpa: Allocator, io: std.Io, env: Env, app: *core.App, scanner: *s
         .trash => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
+            if (!try parentsUnchanged(gpa, app, scanner, id, path, "trash")) return false;
             if (trash(gpa, env.trash_root, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
         },
         .delete => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
+            if (!try parentsUnchanged(gpa, app, scanner, id, path, "rm -r")) return false;
             if (std.Io.Dir.cwd().deleteTree(io, path)) |_| app.markDeleted(id) else |e| {
                 try logFailure(gpa, app, "rm -r", path, e);
                 // Part of it may be gone: rescan so the tree matches the disk.
@@ -119,6 +121,31 @@ pub fn listOuter(gpa: Allocator, app: *core.App, listing: *scan.Listing) !void {
     const z = try gpa.dupeSentinel(u8, parent, 0);
     defer gpa.free(z);
     try app.setOuter(try listing.read(gpa, z));
+}
+
+/// See docs/decisions.md D1 (and its stronger alternative).
+/// The scan root is a realpath, so no directory above a scanned node is a symlink. If one is now, the tree was
+/// changed under us (e.g. a parent swapped for a link elsewhere): refuse, log, and rescan the parent.
+fn parentsUnchanged(gpa: Allocator, app: *core.App, scanner: *scan.Scanner, id: core.NodeId, path: []const u8, what: []const u8) !bool {
+    const z = try gpa.dupeSentinel(u8, path, 0);
+    defer gpa.free(z);
+    const base_start = std.mem.lastIndexOfScalar(u8, path, '/') orelse return true;
+    var i: usize = 1;
+    while (i <= base_start) : (i += 1) {
+        if (i != base_start and path[i] != '/') continue;
+        if (i == 0) continue;
+        z[i] = 0;
+        defer z[i] = '/';
+        var st: scan.Stat = undefined;
+        const ok = scan.lstatAt(c.AT.FDCWD, z, &st) == 0 and (st.mode & c.S.IFMT) == c.S.IFDIR;
+        if (!ok) {
+            try logFailure(gpa, app, what, path, error.ParentChangedSinceScan);
+            const again = try app.rescan(app.tree.get(id).parent);
+            if (again != .nil) try scanner.pushLocked(&.{again});
+            return false;
+        }
+    }
+    return true;
 }
 
 fn logFailure(gpa: Allocator, app: *core.App, what: []const u8, path: []const u8, e: anyerror) !void {

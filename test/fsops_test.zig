@@ -287,3 +287,26 @@ test "loadKeymap: missing file is silent, a valid file applies, a broken one is 
     try expectEqual(@as(usize, 1), app.log.items.len);
     try expectEqual(core.Command.quit, try app.handleKey(core.Key.char('q')));
 }
+
+test "a parent swapped for a symlink after the scan: delete and trash refuse and leave the link target alone" {
+    var w: World = undefined;
+    try w.init(struct {
+        fn build(d: std.Io.Dir) !void {
+            try d.createDirPath(io, "proj/build");
+            try d.writeFile(io, .{ .sub_path = "proj/build/out", .data = "o" });
+        }
+    }.build);
+    defer w.deinit();
+    // Elsewhere: a directory with the same shape that must survive.
+    try w.tmp.dir.createDirPath(io, "elsewhere/build");
+    try w.tmp.dir.writeFile(io, .{ .sub_path = "elsewhere/build/precious", .data = "keep" });
+    try w.press("l"); // into proj, cursor on build
+    try w.tmp.dir.deleteTree(io, "root/proj");
+    try w.tmp.dir.symLink(io, "../elsewhere", "root/proj", .{});
+
+    try w.press("Xy");
+    try expect(w.exists("elsewhere/build/precious"));
+    try w.press("x");
+    try expect(w.exists("elsewhere/build/precious"));
+    try expect((try w.view()).status.errors >= 1);
+}
