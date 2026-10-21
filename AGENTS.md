@@ -24,8 +24,8 @@ Every branch a caller must handle multiplies codepaths; give callers one.
 - Errors go to a log side-channel (`configLog`), not errno-style slots.
 
 # Rules
-- While developing, run `make test` after each change and fix every failure.
-- When a feature or implementation is finished, run `make check` (tests, mutation, iOS compile, debug build) and fix every failure. If `make check` gets too slow, take `mutation` out of it (architecture D48).
+- While developing, run `zig build test` after each change and fix every failure.
+- When a feature or implementation is finished, run `zig build check` (tests, Debug and ReleaseSafe builds, Linux cross-compile) and fix every failure.
 - Always follow `.agents/rules/testing.md` when writing/editing/reviewing tests.
 
 ## Naming conventions
