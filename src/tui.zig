@@ -128,11 +128,11 @@ pub fn coreKey(k: vaxis.Key) ?core.Key {
     };
     for (special) |s| if (k.codepoint == s[0]) return .{ .code = s[1], .ctrl = k.mods.ctrl };
     if (k.mods.ctrl) return .{ .code = std.ascii.toLower(@intCast(k.codepoint & 0x7f)), .ctrl = true };
-    if (k.text) |text| {
+    if (k.text) |text| if (text.len > 0) {
         const n = std.unicode.utf8ByteSequenceLength(text[0]) catch return null;
         if (n > text.len) return null;
         return .{ .code = std.unicode.utf8Decode(text[0..n]) catch return null };
-    }
+    };
     if (k.mods.shift) if (k.shifted_codepoint) |cp| return .{ .code = cp };
     if (k.codepoint >= 0xE000 and k.codepoint < 0xF900) return null;
     return .{ .code = k.codepoint };
@@ -143,9 +143,10 @@ pub fn fmtSize(buf: []u8, bytes: u64) []const u8 {
     const units = "BKMGTP";
     var v: f64 = @floatFromInt(bytes);
     var u: usize = 0;
-    while (v >= 1024 and u + 1 < units.len) : (u += 1) v /= 1024;
+    // 1023.5 so values that would print as "1024K" move up to "1.0M".
+    while (v >= 1023.5 and u + 1 < units.len) : (u += 1) v /= 1024;
     if (u == 0) return std.fmt.bufPrint(buf, "{d}B", .{bytes}) catch "?";
-    if (v < 10) return std.fmt.bufPrint(buf, "{d:.1}{c}", .{ v, units[u] }) catch "?";
+    if (v < 9.95) return std.fmt.bufPrint(buf, "{d:.1}{c}", .{ v, units[u] }) catch "?";
     return std.fmt.bufPrint(buf, "{d:.0}{c}", .{ v, units[u] }) catch "?";
 }
 
@@ -230,7 +231,7 @@ fn drawStatus(arena: Allocator, win: vaxis.Window, v: core.View) !void {
         if (v.current.len == 0) 0 else v.cursor + 1, v.current.len, fmtSize(&buf2, v.size),
     });
     const w: u16 = @intCast(@min(right.len, win.width));
-    if (col + w < win.width) _ = win.printSegment(.{ .text = right, .style = .{ .fg = DIM } }, .{ .wrap = .none, .col_offset = win.width - w });
+    if (@as(u32, col) + w < win.width) _ = win.printSegment(.{ .text = right, .style = .{ .fg = DIM } }, .{ .wrap = .none, .col_offset = win.width - w });
 }
 
 fn drawLog(arena: Allocator, win: vaxis.Window, v: core.View) !void {

@@ -9,10 +9,11 @@ pub const Key = struct {
     pub const ESC: u21 = 0x1b;
     pub const ENTER: u21 = '\r';
     pub const TAB: u21 = '\t';
-    pub const UP: u21 = 0xE000;
-    pub const DOWN: u21 = 0xE001;
-    pub const LEFT: u21 = 0xE002;
-    pub const RIGHT: u21 = 0xE003;
+    // Above the Unicode range, so no typed character can collide with them.
+    pub const UP: u21 = 0x110000;
+    pub const DOWN: u21 = 0x110001;
+    pub const LEFT: u21 = 0x110002;
+    pub const RIGHT: u21 = 0x110003;
 
     pub fn char(c: u21) Key {
         return .{ .code = c };

@@ -104,11 +104,11 @@ pub const App = struct {
             const id = try app.tree.add(app.gpa, e.name, .{ .kind = e.kind, .size = e.size });
             app.tree.link(dir, id);
             if (e.kind == .dir) try app.scratch.append(app.gpa, id);
-            sum += e.size;
+            sum +|= e.size;
         }
-        app.tree.addSize(dir, @intCast(sum));
+        app.tree.addSize(dir, sum);
         app.files += entries.len;
-        app.bytes += sum;
+        app.bytes +|= sum;
         return app.scratch.items;
     }
 
@@ -144,7 +144,7 @@ pub const App = struct {
             app.cwd = parent;
             app.cursor = app.neighbour(id) catch .nil;
         }
-        app.tree.addSize(parent, -@as(i64, @intCast(app.tree.get(id).size)));
+        app.tree.subSize(parent, app.tree.get(id).size);
         app.tree.unlink(id);
         app.tree.nodes.items(.flags)[id.index()].deleted = true;
     }
@@ -357,7 +357,7 @@ pub const App = struct {
             const name = app.outer_names.items[o.name_off..][0..o.name_len];
             if (std.mem.eql(u8, name, base)) {
                 // The listing knows the old root's own blocks, which its scan never counted.
-                app.tree.addSize(old, @intCast(o.size));
+                app.tree.addSize(old, o.size);
                 continue;
             }
             try siblings.append(app.gpa, .{ .name = name, .kind = o.kind, .size = o.size });
@@ -374,10 +374,10 @@ pub const App = struct {
         var it = nodes.items(.first_child)[dir.index()];
         while (it != .nil) : (it = nodes.items(.next_sibling)[it.index()]) {
             if (nodes.items(.flags)[it.index()].deleted) continue;
-            sum += nodes.items(.size)[it.index()];
+            sum +|= nodes.items(.size)[it.index()];
             nodes.items(.flags)[it.index()].deleted = true;
         }
-        app.tree.addSize(dir, -@as(i64, @intCast(sum)));
+        app.tree.subSize(dir, sum);
         nodes.items(.first_child)[dir.index()] = .nil;
         nodes.items(.flags)[dir.index()].unreadable = false;
         nodes.items(.flags)[dir.index()].incomplete = false;

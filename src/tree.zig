@@ -106,14 +106,20 @@ pub const Tree = struct {
         nexts[child.index()] = .nil;
     }
 
-    /// Adds `delta` to the size of `id` and every ancestor.
-    pub fn addSize(t: *Tree, id: NodeId, delta: i64) void {
+    /// Adds `delta` bytes to `id` and every ancestor (saturating).
+    pub fn addSize(t: *Tree, id: NodeId, delta: u64) void {
         const sizes = t.nodes.items(.size);
         const parents = t.nodes.items(.parent);
         var it = id;
-        while (it != .nil) : (it = parents[it.index()]) {
-            sizes[it.index()] = @intCast(@as(i128, sizes[it.index()]) + delta);
-        }
+        while (it != .nil) : (it = parents[it.index()]) sizes[it.index()] +|= delta;
+    }
+
+    /// Subtracts `delta` bytes from `id` and every ancestor (saturating).
+    pub fn subSize(t: *Tree, id: NodeId, delta: u64) void {
+        const sizes = t.nodes.items(.size);
+        const parents = t.nodes.items(.parent);
+        var it = id;
+        while (it != .nil) : (it = parents[it.index()]) sizes[it.index()] -|= delta;
     }
 
     /// True if `id` or any ancestor is deleted.
