@@ -135,8 +135,14 @@ pub fn coreKey(k: vaxis.Key) ?core.Key {
         .{ K.right, core.Key.RIGHT }, .{ K.escape, core.Key.ESC }, .{ K.enter, core.Key.ENTER },
         .{ K.tab, core.Key.TAB },
     };
+    // Alt/Super/Hyper/Meta combos are never bound: ignore them so e.g. Alt+x can't trash.
+    if (k.mods.alt or k.mods.super or k.mods.hyper or k.mods.meta) return null;
     for (special) |s| if (k.codepoint == s[0]) return .{ .code = s[1], .ctrl = k.mods.ctrl };
-    if (k.mods.ctrl) return .{ .code = std.ascii.toLower(@intCast(k.codepoint & 0x7f)), .ctrl = true };
+    if (k.mods.ctrl) {
+        // Ctrl only combines with letters; anything else would alias an unrelated ASCII control key.
+        if (k.codepoint > 0x7f or !std.ascii.isAlphabetic(@intCast(k.codepoint))) return null;
+        return .{ .code = std.ascii.toLower(@intCast(k.codepoint)), .ctrl = true };
+    }
     if (k.text) |text| if (text.len > 0) {
         const n = std.unicode.utf8ByteSequenceLength(text[0]) catch return null;
         if (n > text.len) return null;

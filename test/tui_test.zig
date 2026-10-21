@@ -206,3 +206,12 @@ fn rep(comptime s: []const u8, comptime n: usize) []const u8 {
         return &final;
     }
 }
+
+test "coreKey: Alt/Super/Meta combos and Ctrl with non-letters are ignored" {
+    try expect(key(.{ .codepoint = 'x', .text = "x", .mods = .{ .alt = true } }) == null);
+    try expect(key(.{ .codepoint = 'X', .text = "X", .mods = .{ .meta = true } }) == null);
+    try expect(key(.{ .codepoint = 'q', .mods = .{ .super = true } }) == null);
+    try expect(key(.{ .codepoint = 0xE9, .mods = .{ .ctrl = true } }) == null);
+    try expect(key(.{ .codepoint = '[', .mods = .{ .ctrl = true } }) == null);
+    try expect(key(.{ .codepoint = 'c', .mods = .{ .ctrl = true } }).?.eql(core.Key.QUIT));
+}
