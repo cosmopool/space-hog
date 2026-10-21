@@ -79,24 +79,39 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           mkdir -p dist
-          # Linux: fully static (musl). macOS: only libSystem, which every Mac has.
-          for target in aarch64-macos x86_64-macos x86_64-linux-musl aarch64-linux-musl; do
-            name="space-hog-${tag}-${target}"
-            zig build -Doptimize=ReleaseSafe -Dstrip=true -Dtarget="${target}" --prefix "stage/${name}"
-            cp README.md "stage/${name}/"
-            tar -C stage -czf "dist/${name}.tar.gz" "${name}"
+          # musl: fully static. gnu: links the system glibc, built against the oldest glibc our code links
+          # with (x86_64: 2.16, the first with getauxval; aarch64: 2.17, the first with arm64 support).
+          # macOS: only libSystem, which every Mac has.
+          targets=(
+            "aarch64-macos           aarch64-macos"
+            "x86_64-macos            x86_64-macos"
+            "x86_64-linux-musl       x86_64-linux-musl"
+            "aarch64-linux-musl      aarch64-linux-musl"
+            "x86_64-linux-gnu.2.16   x86_64-linux-gnu"
+            "aarch64-linux-gnu.2.17  aarch64-linux-gnu"
+          )
+          for entry in "${targets[@]}"; do
+            read -r target label <<<"${entry}"
+            name="space-hog-${tag}-${label}"
+            zig build -Doptimize=ReleaseSafe -Dstrip=true -Dtarget="${target}" --prefix "stage/${label}"
+            # Archive layout: space-hog-<tag>-<target>/{space-hog,README.md}, no bin/ directory.
+            mkdir -p "pkg/${name}"
+            cp "stage/${label}/bin/space-hog" README.md "pkg/${name}/"
+            tar -C pkg -czf "dist/${name}.tar.gz" "${name}"
           done
           (cd dist && sha256sum -- *.tar.gz > SHA256SUMS)
           ls -la dist
           cat dist/SHA256SUMS
-      - name: Check the Linux binary runs
+      - name: Check the Linux binaries run
         run: |
           set -euo pipefail
-          bin="stage/space-hog-${GITHUB_REF_NAME}-x86_64-linux-musl/bin/space-hog"
-          file "${bin}" | grep -q "statically linked"
+          file "stage/x86_64-linux-musl/bin/space-hog" | grep -q "statically linked"
+          file "stage/x86_64-linux-gnu/bin/space-hog" | grep -q "dynamically linked"
           # Bad arguments are rejected before the terminal is touched, so this runs headless.
-          out="$("${bin}" -j abc 2>&1 || true)"
-          grep -q InvalidJobs <<<"${out}"
+          for label in x86_64-linux-musl x86_64-linux-gnu; do
+            out="$("stage/${label}/bin/space-hog" -j abc 2>&1 || true)"
+            grep -q InvalidJobs <<<"${out}"
+          done
       - uses: softprops/action-gh-release@v3
         with:
           files: |

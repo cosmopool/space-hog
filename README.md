@@ -187,7 +187,15 @@ Notes:
 
 ## Install / build
 
-**Prebuilt:** every `v*` tag publishes binaries on the [Releases](https://github.com/cosmopool/space-hog/releases) page for macOS (arm64, x86_64) and Linux (x86_64, arm64; fully static). Download the `.tar.gz` for your system, check it against `SHA256SUMS`, and put `bin/space-hog` on your `PATH`.
+**Prebuilt:** every `v*` tag publishes binaries on the [Releases](https://github.com/cosmopool/space-hog/releases) page. Download the `.tar.gz` for your system, check it against `SHA256SUMS`, and put the `space-hog` binary inside it on your `PATH`.
+
+| Archive | For |
+|---|---|
+| `aarch64-macos` / `x86_64-macos` | Apple Silicon / Intel Macs |
+| `x86_64-linux-musl` / `aarch64-linux-musl` | Any Linux; fully static, no libc needed (Alpine included) |
+| `x86_64-linux-gnu` / `aarch64-linux-gnu` | glibc distributions; needs glibc 2.16+ (x86_64) or 2.17+ (arm64) |
+
+On Linux, space-hog needs **kernel 4.11 or newer** (it reads file metadata with `statx`).
 
 **From source:**
 
