@@ -1,7 +1,7 @@
 name: ci
 
-# Every push: tests + checks on Linux and macOS.
-# Tags v*: after those pass, cross-compile release binaries and publish a GitHub release.
+# Every push: tests + checks on Linux and macOS, unless this exact commit already passed them.
+# Tags v*: after those pass (now or in an earlier run), cross-compile release binaries and publish a release.
 on:
   push:
     branches: ["**"]
@@ -11,7 +11,27 @@ permissions:
   contents: read
 
 jobs:
+  # Pushing a tag for a commit that was already pushed (and tested) on a branch would run the same tests
+  # again. If a successful run of this workflow exists for this commit, skip them.
+  already-tested:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      tested: ${{ steps.lookup.outputs.tested }}
+    steps:
+      - id: lookup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&status=success" --jq '.total_count')"
+          echo "successful earlier runs for ${GITHUB_SHA}: ${count}"
+          if [ "${count}" -gt 0 ]; then echo "tested=true" >> "${GITHUB_OUTPUT}"; else echo "tested=false" >> "${GITHUB_OUTPUT}"; fi
+
   check:
+    needs: already-tested
+    if: needs.already-tested.outputs.tested != 'true'
     name: check (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -28,8 +48,12 @@ jobs:
       - run: zig build check --summary all
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: check
+    needs: [already-tested, check]
+    # Runs when the checks passed in this run, or were skipped because an earlier run already passed them.
+    if: >-
+      always() && startsWith(github.ref, 'refs/tags/v') &&
+      (needs.check.result == 'success' ||
+       (needs.check.result == 'skipped' && needs.already-tested.outputs.tested == 'true'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
