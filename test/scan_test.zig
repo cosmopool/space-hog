@@ -151,9 +151,9 @@ test "unreadable directory is reported and its size is marked partial" {
 fn duOwnBlocks(root: []const u8) !u64 {
     const z = try gpa.dupeSentinel(u8, root, 0);
     defer gpa.free(z);
-    var st: std.c.Stat = undefined;
-    if (std.c.fstatat(std.c.AT.FDCWD, z, &st, 0) != 0) return error.StatFailed;
-    return @as(u64, @intCast(st.blocks)) * 512;
+    var st: scan.Stat = undefined;
+    if (scan.lstatAt(std.c.AT.FDCWD, z, &st) != 0) return error.StatFailed;
+    return st.blocks * 512;
 }
 
 test "files with several hardlinks are flagged shared by the scan" {

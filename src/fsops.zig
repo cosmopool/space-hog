@@ -244,7 +244,8 @@ fn trashFreedesktop(gpa: Allocator, trash_root: []const u8, path: []const u8) !v
     try mkdirP(gpa, files_dir);
     try mkdirP(gpa, info_dir);
 
-    const base = std.fs.path.basename(path);
+    var short_buf: [TRASH_NAME_MAX]u8 = undefined;
+    const base = trashName(std.fs.path.basename(path), &short_buf);
     const src = try gpa.dupeSentinel(u8, path, 0);
     defer gpa.free(src);
     var n: usize = 1;
@@ -282,6 +283,21 @@ fn trashFreedesktop(gpa: Allocator, trash_root: []const u8, path: []const u8) !v
         };
     }
     return error.TooManyNameCollisions;
+}
+
+/// Longest trash name that still leaves room for ".trashinfo" and a ".NNN" collision suffix in NAME_MAX (255).
+const TRASH_NAME_MAX = 255 - ".trashinfo".len - ".999".len;
+
+/// Names too long for the trash are cut (at a UTF-8 boundary) and given a short hash so they stay unique.
+/// The .trashinfo `Path=` keeps the full original path, so restoring puts the original name back.
+fn trashName(base: []const u8, buf: *[TRASH_NAME_MAX]u8) []const u8 {
+    if (base.len <= TRASH_NAME_MAX) return base;
+    const hash_len = 1 + 16;
+    var cut = TRASH_NAME_MAX - hash_len;
+    while (cut > 0 and (base[cut] & 0xc0) == 0x80) cut -= 1;
+    @memcpy(buf[0..cut], base[0..cut]);
+    const tail = std.fmt.bufPrint(buf[cut..], "-{x:0>16}", .{std.hash.Wyhash.hash(0, base)}) catch unreachable;
+    return buf[0 .. cut + tail.len];
 }
 
 const Tm = extern struct {

@@ -311,3 +311,56 @@ test "a parent swapped for a symlink after the scan: delete and trash refuse and
     try expect(w.exists("elsewhere/build/precious"));
     try expect((try w.view()).status.errors >= 1);
 }
+
+test "linux: trash writes a .trashinfo with the percent-encoded original path" {
+    if (builtin.os.tag != .linux) return error.SkipZigTest;
+    var w: World = undefined;
+    try w.init(struct {
+        fn build(d: std.Io.Dir) !void {
+            try d.createDirPath(io, "has space%#é");
+            try d.writeFile(io, .{ .sub_path = "has space%#é/f", .data = "x" });
+        }
+    }.build);
+    defer w.deinit();
+    try w.press("x");
+    try expect(w.exists("trash/files/has space%#é/f"));
+    const info = try w.tmp.dir.readFileAlloc(io, "trash/info/has space%#é.trashinfo", gpa, .limited(4096));
+    defer gpa.free(info);
+    const want_path = try std.fmt.allocPrint(gpa, "[Trash Info]\nPath={s}/has%20space%25%23%C3%A9\nDeletionDate=", .{w.root});
+    defer gpa.free(want_path);
+    try expect(std.mem.startsWith(u8, info, want_path));
+    try expectEqual(@as(usize, "YYYY-MM-DDThh:mm:ss\n".len), info.len - want_path.len);
+}
+
+test "linux: names too long for the trash are shortened, the info keeps the full path" {
+    if (builtin.os.tag != .linux) return error.SkipZigTest;
+    var w: World = undefined;
+    try w.init(struct {
+        fn build(d: std.Io.Dir) !void {
+            const long = comptime rep("L", 250);
+            try d.createDirPath(io, long);
+            try d.writeFile(io, .{ .sub_path = comptime (long ++ "/f"), .data = "x" });
+        }
+    }.build);
+    defer w.deinit();
+    try w.press("x");
+    try expectEqual(@as(usize, 0), (try w.view()).current.len);
+    var dir = try w.tmp.dir.openDir(io, "trash/info", .{ .iterate = true });
+    defer dir.close(io);
+    var it = dir.iterate();
+    const e = (try it.next(io)).?;
+    try expect(e.name.len <= 255);
+    const info = try dir.readFileAlloc(io, e.name, gpa, .limited(4096));
+    defer gpa.free(info);
+    try expect(std.mem.indexOf(u8, info, comptime rep("L", 250)) != null);
+}
+
+/// `s` repeated `n` times, at compile time.
+fn rep(comptime s: []const u8, comptime n: usize) []const u8 {
+    comptime {
+        var out: [s.len * n]u8 = undefined;
+        for (0..n) |i| @memcpy(out[i * s.len ..][0..s.len], s);
+        const final = out;
+        return &final;
+    }
+}
