@@ -222,3 +222,31 @@ test "clean: bidi and zero-width characters are shown as ?, so names can't disgu
     try expectEqualStrings("photos?gpj.exe", try tui.clean(arena.allocator(), "photos\u{202E}gpj.exe"));
     try expectEqualStrings("a?b?c?d", try tui.clean(arena.allocator(), "a\u{200B}b\u{FEFF}c\u{2066}d"));
 }
+
+test "paint: the delete prompt shows the target's size (text outlives the paint call)" {
+    var app = try core.App.init(gpa, "/r");
+    defer app.deinit();
+    _ = try app.addDir(app.root, &.{.{ .name = "big", .kind = .dir, .size = 9 << 30 }});
+    _ = try app.handleKey(core.Key.char('X'));
+    var arena: std.heap.ArenaAllocator = .init(gpa);
+    defer arena.deinit();
+    var c = try Canvas.init(80, 24);
+    defer c.deinit();
+    var scroll: tui.Scroll = .{};
+    try tui.paint(arena.allocator(), c.window(), try app.view(arena.allocator()), &scroll);
+    // Reuse the stack below this frame (where paint's locals lived), then read the screen.
+    smashStack();
+    // The size is the line right under the prompt's path ("9.0G" also appears in the list and status bar).
+    var path_row: ?u16 = null;
+    for (0..24) |y| {
+        if (std.mem.indexOf(u8, try c.rowText(arena.allocator(), @intCast(y)), "/r/big") != null) path_row = @intCast(y);
+    }
+    const size_line = try c.rowText(arena.allocator(), path_row.? + 1);
+    try expect(std.mem.indexOf(u8, size_line, "9.0G") != null);
+}
+
+noinline fn smashStack() void {
+    var junk: [64 * 1024]u8 = undefined;
+    @memset(&junk, '@');
+    std.mem.doNotOptimizeAway(&junk);
+}

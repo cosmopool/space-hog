@@ -30,6 +30,25 @@ pub fn build(b: *std.Build) void {
         test_step.dependOn(&b.addRunArtifact(t).step);
     }
 
+    // screenshots: README images from mock data drawn by the real paint() code.
+    const shots = b.addExecutable(.{
+        .name = "screenshots",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/screenshots.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "core", .module = exe.root_module.import_table.get("core").? },
+                .{ .name = "tui", .module = exe.root_module.import_table.get("tui").? },
+                .{ .name = "vaxis", .module = exe.root_module.import_table.get("tui").?.import_table.get("vaxis").? },
+            },
+        }),
+    });
+    const run_shots = b.addRunArtifact(shots);
+    run_shots.setCwd(b.path("."));
+    run_shots.addArg("docs/img");
+    b.step("screenshots", "Render README screenshots into docs/img").dependOn(&run_shots.step);
+
     // check: tests + Debug + ReleaseSafe + Linux cross-compile
     const check_step = b.step("check", "Tests, Debug and ReleaseSafe builds, Linux cross-compile");
     check_step.dependOn(test_step);

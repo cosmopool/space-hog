@@ -242,8 +242,21 @@ fn drawStatus(arena: Allocator, win: vaxis.Window, v: core.View) !void {
         // At most half the bar, so the scan stats stay visible.
         const note = try clean(arena, v.status.last_dry_run["dry run: ".len..]);
         const room = (win.width / 2) -| col;
+        const text = try std.fmt.allocPrint(arena, " {s} ", .{note});
+        // Cut with an ellipsis when it doesn't fit (gwidth counts columns, not bytes).
+        const shown = if (win.gwidth(text) <= room) text else blk: {
+            var end: usize = 0;
+            var it = std.unicode.Utf8View.initUnchecked(text).iterator();
+            var cols: u16 = 0;
+            while (it.nextCodepointSlice()) |cp| {
+                if (cols + 2 > room) break;
+                cols += 1;
+                end += cp.len;
+            }
+            break :blk try std.fmt.allocPrint(arena, "{s}… ", .{text[0..end]});
+        };
         const w = win.child(.{ .x_off = col, .width = room, .height = 1 });
-        col += w.printSegment(.{ .text = try std.fmt.allocPrint(arena, " {s}", .{note}), .style = .{ .fg = WARN } }, .{ .wrap = .none }).col;
+        col += w.printSegment(.{ .text = shown, .style = .{ .fg = WARN } }, .{ .wrap = .none }).col;
     }
     col = win.printSegment(.{ .text = left, .style = .{ .fg = if (v.status.scan_done) OK else WARN } }, .{ .wrap = .none, .col_offset = col }).col;
     if (v.status.errors > 0) {
@@ -288,7 +301,8 @@ fn drawPrompt(arena: Allocator, win: vaxis.Window, p: core.view.Prompt, dry_run:
     var buf: [16]u8 = undefined;
     _ = box.printSegment(.{ .text = if (dry_run) " DRY RUN: would delete (rm -r)" else " Delete permanently (rm -r)?", .style = .{ .bold = true } }, .{ .wrap = .none });
     _ = box.printSegment(.{ .text = try clean(arena, p.path) }, .{ .wrap = .none, .row_offset = 1, .col_offset = 1 });
-    _ = box.printSegment(.{ .text = fmtSize(&buf, p.size) }, .{ .wrap = .none, .row_offset = 2, .col_offset = 1 });
+    // Cells keep a reference to the text until render, so it must live in the arena, not on this stack frame.
+    _ = box.printSegment(.{ .text = try arena.dupe(u8, fmtSize(&buf, p.size)) }, .{ .wrap = .none, .row_offset = 2, .col_offset = 1 });
     if (p.shared) _ = box.printSegment(.{ .text = " some files are hardlinked elsewhere; may free less", .style = .{ .fg = WARN } }, .{ .wrap = .none, .row_offset = 3 });
     _ = box.printSegment(.{ .text = " y delete   any other key cancels", .style = .{ .fg = DIM } }, .{ .wrap = .none, .row_offset = if (p.shared) 4 else 3 });
 }
