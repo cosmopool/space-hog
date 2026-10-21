@@ -109,8 +109,8 @@ fn trash(gpa: Allocator, home: []const u8, path: []const u8) !void {
         else
             try std.fmt.allocPrintSentinel(gpa, "{s}/.Trash/{s} {d}", .{ home, base, n }, 0);
         defer gpa.free(dst);
-        var st: c.Stat = undefined;
-        if (c.fstatat(c.AT.FDCWD, dst, &st, c.AT.SYMLINK_NOFOLLOW) == 0) continue;
+        var st: scan.Stat = undefined;
+        if (scan.lstatAt(c.AT.FDCWD, dst, &st) == 0) continue;
         if (c.rename(src, dst) == 0) return;
         return switch (std.posix.errno(@as(c_int, -1))) {
             .XDEV => error.TrashOnOtherVolume,

@@ -1,4 +1,4 @@
-//! macOS entry point: owns the main loop, the scan threads and the filesystem side effects.
+//! Linux entry point: owns the main loop, the scan threads and the filesystem side effects.
 const std = @import("std");
 const core = @import("core");
 const tui_mod = @import("tui");
@@ -97,22 +97,51 @@ fn listOuter(gpa: Allocator, app: *core.App, listing: *scan.Listing) !void {
     try app.setOuter(try listing.read(gpa, z));
 }
 
-/// Moves `path` into ~/.Trash, adding " 2", " 3"... on name collisions.
+/// Moves `path` to the FreeDesktop trash ($XDG_DATA_HOME/Trash, default ~/.local/share/Trash): writes
+/// info/<name>.trashinfo first, then renames into files/<name>. Names collide → "<name>.2", "<name>.3"...
 fn trash(gpa: Allocator, home: []const u8, path: []const u8) !void {
+    const data_home = if (std.c.getenv("XDG_DATA_HOME")) |x| std.mem.sliceTo(x, 0) else blk: {
+        break :blk try std.fmt.allocPrint(gpa, "{s}/.local/share", .{home});
+    };
+    defer if (std.c.getenv("XDG_DATA_HOME") == null) gpa.free(data_home);
+    const files_dir = try std.fmt.allocPrintSentinel(gpa, "{s}/Trash/files", .{data_home}, 0);
+    defer gpa.free(files_dir);
+    const info_dir = try std.fmt.allocPrintSentinel(gpa, "{s}/Trash/info", .{data_home}, 0);
+    defer gpa.free(info_dir);
+    try mkdirP(gpa, files_dir);
+    try mkdirP(gpa, info_dir);
+
     const base = std.fs.path.basename(path);
     const src = try gpa.dupeSentinel(u8, path, 0);
     defer gpa.free(src);
     var n: usize = 1;
     while (n < 1000) : (n += 1) {
-        const dst = if (n == 1)
-            try std.fmt.allocPrintSentinel(gpa, "{s}/.Trash/{s}", .{ home, base }, 0)
-        else
-            try std.fmt.allocPrintSentinel(gpa, "{s}/.Trash/{s} {d}", .{ home, base, n }, 0);
+        const name = if (n == 1) try gpa.dupe(u8, base) else try std.fmt.allocPrint(gpa, "{s}.{d}", .{ base, n });
+        defer gpa.free(name);
+        const info_path = try std.fmt.allocPrintSentinel(gpa, "{s}/{s}.trashinfo", .{ info_dir, name }, 0);
+        defer gpa.free(info_path);
+        const dst = try std.fmt.allocPrintSentinel(gpa, "{s}/{s}", .{ files_dir, name }, 0);
         defer gpa.free(dst);
-        var st: c.Stat = undefined;
-        if (c.fstatat(c.AT.FDCWD, dst, &st, c.AT.SYMLINK_NOFOLLOW) == 0) continue;
+
+        var st: scan.Stat = undefined;
+        if (scan.lstatAt(c.AT.FDCWD, dst, &st) == 0) continue;
+        const fd = c.open(info_path, .{ .ACCMODE = .WRONLY, .CREAT = true, .EXCL = true, .CLOEXEC = true }, @as(c.mode_t, 0o600));
+        if (fd < 0) {
+            if (std.posix.errno(@as(c_int, -1)) == .EXIST) continue;
+            return error.TrashInfoFailed;
+        }
+        const info = try trashInfo(gpa, path);
+        defer gpa.free(info);
+        const written = c.write(fd, info.ptr, info.len);
+        _ = c.close(fd);
+        if (written != @as(isize, @intCast(info.len))) {
+            _ = c.unlink(info_path);
+            return error.TrashInfoFailed;
+        }
         if (c.rename(src, dst) == 0) return;
-        return switch (std.posix.errno(@as(c_int, -1))) {
+        const err = std.posix.errno(@as(c_int, -1));
+        _ = c.unlink(info_path);
+        return switch (err) {
             .XDEV => error.TrashOnOtherVolume,
             .ACCES, .PERM => error.AccessDenied,
             .NOENT => error.NotFound,
@@ -120,6 +149,54 @@ fn trash(gpa: Allocator, home: []const u8, path: []const u8) !void {
         };
     }
     return error.TooManyNameCollisions;
+}
+
+const Tm = extern struct {
+    sec: c_int,
+    min: c_int,
+    hour: c_int,
+    mday: c_int,
+    mon: c_int,
+    year: c_int,
+    wday: c_int,
+    yday: c_int,
+    isdst: c_int,
+    gmtoff: c_long,
+    zone: ?[*:0]const u8,
+};
+extern "c" fn localtime_r(t: *const c.time_t, out: *Tm) ?*Tm;
+extern "c" fn time(t: ?*c.time_t) c.time_t;
+
+/// `[Trash Info]` file body: percent-encoded absolute path and local deletion time.
+fn trashInfo(gpa: Allocator, path: []const u8) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(gpa);
+    try out.appendSlice(gpa, "[Trash Info]\nPath=");
+    for (path) |b| {
+        if (std.ascii.isAlphanumeric(b) or std.mem.indexOfScalar(u8, "/-_.~", b) != null) {
+            try out.append(gpa, b);
+        } else {
+            try out.print(gpa, "%{X:0>2}", .{b});
+        }
+    }
+    const now = time(null);
+    var tm: Tm = undefined;
+    _ = localtime_r(&now, &tm);
+    try out.print(gpa, "\nDeletionDate={d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}\n", .{
+        @as(u32, @intCast(tm.year + 1900)), @as(u32, @intCast(tm.mon + 1)), @as(u32, @intCast(tm.mday)),
+        @as(u32, @intCast(tm.hour)),        @as(u32, @intCast(tm.min)),     @as(u32, @intCast(tm.sec)),
+    });
+    return out.toOwnedSlice(gpa);
+}
+
+fn mkdirP(gpa: Allocator, path: [:0]const u8) !void {
+    var i: usize = 1;
+    while (i <= path.len) : (i += 1) {
+        if (i != path.len and path[i] != '/') continue;
+        const part = try gpa.dupeSentinel(u8, path[0..i], 0);
+        defer gpa.free(part);
+        if (c.mkdir(part, 0o700) != 0 and std.posix.errno(@as(c_int, -1)) != .EXIST) return error.TrashDirFailed;
+    }
 }
 
 fn logFailure(gpa: Allocator, app: *core.App, what: []const u8, path: []const u8, e: anyerror) !void {

@@ -178,8 +178,8 @@ fn readDir(gpa: Allocator, path: [:0]const u8, batch: *Batch) ?ReadError {
         batch.names.append(gpa, 0) catch return error.OutOfMemory;
         const name_z = batch.names.items[off .. off + name.len :0];
 
-        var st: c.Stat = undefined;
-        if (c.fstatat(fd, name_z, &st, c.AT.SYMLINK_NOFOLLOW) != 0) {
+        var st: Stat = undefined;
+        if (lstatAt(fd, name_z, &st) != 0) {
             batch.skipped.append(gpa, .{ off, name.len }) catch return error.OutOfMemory;
             continue;
         }
@@ -189,15 +189,12 @@ fn readDir(gpa: Allocator, path: [:0]const u8, batch: *Batch) ?ReadError {
             c.S.IFLNK => .symlink,
             else => .other,
         };
-        const link: ?[2]u64 = if (kind != .dir and st.nlink > 1)
-            .{ @bitCast(@as(i64, st.dev)), @intCast(st.ino) }
-        else
-            null;
+        const link: ?[2]u64 = if (kind != .dir and st.nlink > 1) .{ st.dev, st.ino } else null;
         batch.records.append(gpa, .{
             .off = off,
             .len = name.len,
             .kind = kind,
-            .size = @as(u64, @intCast(@max(st.blocks, 0))) * 512,
+            .size = st.blocks * 512,
             .link = link,
         }) catch return error.OutOfMemory;
     }
@@ -237,3 +234,35 @@ pub const Listing = struct {
         return l.batch.entries.items;
     }
 };
+
+/// fstatat(..., AT_SYMLINK_NOFOLLOW). std.c leaves fstatat undefined on Linux, so declare libc's directly.
+/// The stat fields the scan needs, filled by `lstatAt`.
+pub const Stat = struct { mode: u32, nlink: u64, dev: u64, ino: u64, blocks: u64 };
+
+/// lstat relative to `dirfd`: fstatat(AT_SYMLINK_NOFOLLOW) on macOS, statx on Linux. Returns 0 on success.
+pub fn lstatAt(dirfd: c.fd_t, path: [*:0]const u8, out: *Stat) c_int {
+    if (@import("builtin").os.tag == .linux) {
+        const linux = std.os.linux;
+        var stx: linux.Statx = undefined;
+        const rc = linux.statx(dirfd, path, linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true, .MODE = true, .NLINK = true, .INO = true, .BLOCKS = true }, &stx);
+        if (linux.errno(rc) != .SUCCESS) return -1;
+        out.* = .{
+            .mode = stx.mode,
+            .nlink = stx.nlink,
+            .dev = (@as(u64, stx.dev_major) << 32) | stx.dev_minor,
+            .ino = stx.ino,
+            .blocks = stx.blocks,
+        };
+        return 0;
+    }
+    var st: c.Stat = undefined;
+    if (c.fstatat(dirfd, path, &st, c.AT.SYMLINK_NOFOLLOW) != 0) return -1;
+    out.* = .{
+        .mode = st.mode,
+        .nlink = st.nlink,
+        .dev = @bitCast(@as(i64, st.dev)),
+        .ino = @intCast(st.ino),
+        .blocks = @intCast(@max(st.blocks, 0)),
+    };
+    return 0;
+}
