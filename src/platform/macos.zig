@@ -18,6 +18,7 @@ pub fn main(init: std.process.Init) !void {
     var app = try core.App.init(gpa, root_path);
     defer app.deinit();
     app.dry_run = args.dry_run;
+    const trash_root = try std.fmt.allocPrint(init.arena.allocator(), "{s}/.Trash", .{home});
     try loadKeymap(gpa, io, env, home, &app);
 
     var tui: tui_mod.Tui = undefined;
@@ -55,26 +56,31 @@ pub fn main(init: std.process.Init) !void {
             scanner.unlock();
             return e;
         };
-        const quit = try execute(gpa, io, home, &app, &scanner, &tui, &listing, cmd);
+        const quit = try execute(gpa, io, trash_root, &app, &scanner, &tui, &listing, cmd);
         scanner.unlock();
         if (quit) break;
     }
 }
 
 /// Runs a command from the core. Called with the scanner lock held.
-fn execute(gpa: Allocator, io: std.Io, home: []const u8, app: *core.App, scanner: *scan.Scanner, tui: *tui_mod.Tui, listing: *scan.Listing, cmd: core.Command) !bool {
+fn execute(gpa: Allocator, io: std.Io, trash_root: []const u8, app: *core.App, scanner: *scan.Scanner, tui: *tui_mod.Tui, listing: *scan.Listing, cmd: core.Command) !bool {
     switch (cmd) {
         .none => {},
         .quit => return true,
         .trash => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
-            if (trash(gpa, home, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
+            if (trash(gpa, trash_root, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
         },
         .delete => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
-            if (std.Io.Dir.cwd().deleteTree(io, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "rm -r", path, e);
+            if (std.Io.Dir.cwd().deleteTree(io, path)) |_| app.markDeleted(id) else |e| {
+                try logFailure(gpa, app, "rm -r", path, e);
+                // Part of it may be gone: rescan so the tree matches the disk.
+                const again = try app.rescan(id);
+                if (again != .nil) try scanner.pushLocked(&.{again});
+            }
         },
         .rescan => |id| try scanner.pushLocked(&.{id}),
         .scroll => |s| {
@@ -98,22 +104,27 @@ fn listOuter(gpa: Allocator, app: *core.App, listing: *scan.Listing) !void {
     try app.setOuter(try listing.read(gpa, z));
 }
 
-/// Moves `path` into ~/.Trash, adding " 2", " 3"... on name collisions.
-fn trash(gpa: Allocator, home: []const u8, path: []const u8) !void {
+/// Moves `path` into `trash_root` (~/.Trash), adding " 2", " 3"... on name collisions.
+fn trash(gpa: Allocator, trash_root: []const u8, path: []const u8) !void {
     const base = std.fs.path.basename(path);
     const src = try gpa.dupeSentinel(u8, path, 0);
     defer gpa.free(src);
+    const root_z = try gpa.dupeSentinel(u8, trash_root, 0);
+    defer gpa.free(root_z);
+    if (c.mkdir(root_z, 0o700) != 0 and std.posix.errno(@as(c_int, -1)) != .EXIST) return error.TrashDirFailed;
     var n: usize = 1;
     while (n < 1000) : (n += 1) {
         const dst = if (n == 1)
-            try std.fmt.allocPrintSentinel(gpa, "{s}/.Trash/{s}", .{ home, base }, 0)
+            try std.fmt.allocPrintSentinel(gpa, "{s}/{s}", .{ trash_root, base }, 0)
         else
-            try std.fmt.allocPrintSentinel(gpa, "{s}/.Trash/{s} {d}", .{ home, base, n }, 0);
+            try std.fmt.allocPrintSentinel(gpa, "{s}/{s} {d}", .{ trash_root, base, n }, 0);
         defer gpa.free(dst);
         var st: scan.Stat = undefined;
         if (scan.lstatAt(c.AT.FDCWD, dst, &st) == 0) continue;
-        if (c.rename(src, dst) == 0) return;
+        // RENAME_EXCL: never replace something that appeared at `dst` since the check above.
+        if (renamex_np(src, dst, RENAME_EXCL) == 0) return;
         return switch (std.posix.errno(@as(c_int, -1))) {
+            .EXIST => continue,
             .XDEV => error.TrashOnOtherVolume,
             .ACCES, .PERM => error.AccessDenied,
             .NOENT => error.NotFound,
@@ -122,6 +133,9 @@ fn trash(gpa: Allocator, home: []const u8, path: []const u8) !void {
     }
     return error.TooManyNameCollisions;
 }
+
+const RENAME_EXCL: c_uint = 0x4;
+extern "c" fn renamex_np(from: [*:0]const u8, to: [*:0]const u8, flags: c_uint) c_int;
 
 fn logFailure(gpa: Allocator, app: *core.App, what: []const u8, path: []const u8, e: anyerror) !void {
     const msg = try std.fmt.allocPrint(gpa, "{s} failed for {s}: {s}", .{ what, path, @errorName(e) });

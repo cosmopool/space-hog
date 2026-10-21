@@ -18,6 +18,12 @@ pub fn main(init: std.process.Init) !void {
     var app = try core.App.init(gpa, root_path);
     defer app.deinit();
     app.dry_run = args.dry_run;
+    // $XDG_DATA_HOME/Trash; empty or relative values are ignored, as the XDG spec says.
+    const data_home = env.get("XDG_DATA_HOME") orelse "";
+    const trash_root = if (std.fs.path.isAbsolute(data_home))
+        try std.fmt.allocPrint(init.arena.allocator(), "{s}/Trash", .{data_home})
+    else
+        try std.fmt.allocPrint(init.arena.allocator(), "{s}/.local/share/Trash", .{home});
     try loadKeymap(gpa, io, env, home, &app);
 
     var tui: tui_mod.Tui = undefined;
@@ -55,26 +61,31 @@ pub fn main(init: std.process.Init) !void {
             scanner.unlock();
             return e;
         };
-        const quit = try execute(gpa, io, home, &app, &scanner, &tui, &listing, cmd);
+        const quit = try execute(gpa, io, trash_root, &app, &scanner, &tui, &listing, cmd);
         scanner.unlock();
         if (quit) break;
     }
 }
 
 /// Runs a command from the core. Called with the scanner lock held.
-fn execute(gpa: Allocator, io: std.Io, home: []const u8, app: *core.App, scanner: *scan.Scanner, tui: *tui_mod.Tui, listing: *scan.Listing, cmd: core.Command) !bool {
+fn execute(gpa: Allocator, io: std.Io, trash_root: []const u8, app: *core.App, scanner: *scan.Scanner, tui: *tui_mod.Tui, listing: *scan.Listing, cmd: core.Command) !bool {
     switch (cmd) {
         .none => {},
         .quit => return true,
         .trash => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
-            if (trash(gpa, home, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
+            if (trash(gpa, trash_root, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
         },
         .delete => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
             defer gpa.free(path);
-            if (std.Io.Dir.cwd().deleteTree(io, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "rm -r", path, e);
+            if (std.Io.Dir.cwd().deleteTree(io, path)) |_| app.markDeleted(id) else |e| {
+                try logFailure(gpa, app, "rm -r", path, e);
+                // Part of it may be gone: rescan so the tree matches the disk.
+                const again = try app.rescan(id);
+                if (again != .nil) try scanner.pushLocked(&.{again});
+            }
         },
         .rescan => |id| try scanner.pushLocked(&.{id}),
         .scroll => |s| {
@@ -98,16 +109,12 @@ fn listOuter(gpa: Allocator, app: *core.App, listing: *scan.Listing) !void {
     try app.setOuter(try listing.read(gpa, z));
 }
 
-/// Moves `path` to the FreeDesktop trash ($XDG_DATA_HOME/Trash, default ~/.local/share/Trash): writes
+/// Moves `path` to the FreeDesktop trash at `trash_root` ($XDG_DATA_HOME/Trash): writes
 /// info/<name>.trashinfo first, then renames into files/<name>. Names collide → "<name>.2", "<name>.3"...
-fn trash(gpa: Allocator, home: []const u8, path: []const u8) !void {
-    const data_home = if (std.c.getenv("XDG_DATA_HOME")) |x| std.mem.sliceTo(x, 0) else blk: {
-        break :blk try std.fmt.allocPrint(gpa, "{s}/.local/share", .{home});
-    };
-    defer if (std.c.getenv("XDG_DATA_HOME") == null) gpa.free(data_home);
-    const files_dir = try std.fmt.allocPrintSentinel(gpa, "{s}/Trash/files", .{data_home}, 0);
+fn trash(gpa: Allocator, trash_root: []const u8, path: []const u8) !void {
+    const files_dir = try std.fmt.allocPrintSentinel(gpa, "{s}/files", .{trash_root}, 0);
     defer gpa.free(files_dir);
-    const info_dir = try std.fmt.allocPrintSentinel(gpa, "{s}/Trash/info", .{data_home}, 0);
+    const info_dir = try std.fmt.allocPrintSentinel(gpa, "{s}/info", .{trash_root}, 0);
     defer gpa.free(info_dir);
     try mkdirP(gpa, files_dir);
     try mkdirP(gpa, info_dir);
@@ -181,8 +188,8 @@ fn trashInfo(gpa: Allocator, path: []const u8) ![]u8 {
         }
     }
     const now = time(null);
-    var tm: Tm = undefined;
-    _ = localtime_r(&now, &tm);
+    var tm: Tm = std.mem.zeroes(Tm);
+    if (localtime_r(&now, &tm) == null) return error.NoLocalTime;
     try out.print(gpa, "\nDeletionDate={d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}\n", .{
         @as(u32, @intCast(tm.year + 1900)), @as(u32, @intCast(tm.mon + 1)), @as(u32, @intCast(tm.mday)),
         @as(u32, @intCast(tm.hour)),        @as(u32, @intCast(tm.min)),     @as(u32, @intCast(tm.sec)),
