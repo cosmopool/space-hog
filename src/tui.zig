@@ -185,7 +185,7 @@ pub fn clean(arena: Allocator, name: []const u8) Allocator.Error![]const u8 {
             i += 1;
             continue;
         };
-        if (cp < 0x20 or cp == 0x7f or (cp >= 0x80 and cp < 0xa0) or cp == 0x2028 or cp == 0x2029) {
+        if (unsafeCodepoint(cp)) {
             try out.append(arena, '?');
         } else {
             try out.appendSlice(arena, name[i .. i + n]);
@@ -193,6 +193,16 @@ pub fn clean(arena: Allocator, name: []const u8) Allocator.Error![]const u8 {
         i += n;
     }
     return out.items;
+}
+
+/// Control characters, line separators, and invisible or direction-changing characters (bidi controls,
+/// zero-width) that could make a name look like another one in the delete prompt.
+fn unsafeCodepoint(cp: u21) bool {
+    return cp < 0x20 or cp == 0x7f or (cp >= 0x80 and cp < 0xa0) or
+        cp == 0x2028 or cp == 0x2029 or
+        (cp >= 0x202a and cp <= 0x202e) or (cp >= 0x2066 and cp <= 0x2069) or
+        cp == 0x200e or cp == 0x200f or cp == 0x061c or
+        (cp >= 0x200b and cp <= 0x200d) or cp == 0xfeff;
 }
 
 fn rowStyle(r: core.Row) vaxis.Style {

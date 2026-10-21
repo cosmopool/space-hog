@@ -215,3 +215,10 @@ test "coreKey: Alt/Super/Meta combos and Ctrl with non-letters are ignored" {
     try expect(key(.{ .codepoint = '[', .mods = .{ .ctrl = true } }) == null);
     try expect(key(.{ .codepoint = 'c', .mods = .{ .ctrl = true } }).?.eql(core.Key.QUIT));
 }
+
+test "clean: bidi and zero-width characters are shown as ?, so names can't disguise themselves" {
+    var arena: std.heap.ArenaAllocator = .init(gpa);
+    defer arena.deinit();
+    try expectEqualStrings("photos?gpj.exe", try tui.clean(arena.allocator(), "photos\u{202E}gpj.exe"));
+    try expectEqualStrings("a?b?c?d", try tui.clean(arena.allocator(), "a\u{200B}b\u{FEFF}c\u{2066}d"));
+}
