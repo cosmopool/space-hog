@@ -28,7 +28,11 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "vaxis", .module = exe.root_module.import_table.get("tui").?.import_table.get("vaxis").? },
             },
         }) });
-        test_step.dependOn(&b.addRunArtifact(t).step);
+        // Always execute: results depend on the OS and filesystem (du, trash, firmlinks), not just on the test
+        // binary, so a cached "pass" from an earlier run must not count. Compilation stays cached.
+        const run = b.addRunArtifact(t);
+        run.has_side_effects = true;
+        test_step.dependOn(&run.step);
     }
 
     // screenshots: README images from mock data drawn by the real paint() code.
