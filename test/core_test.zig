@@ -702,3 +702,15 @@ test "Ctrl-C quits from any mode and cannot be rebound" {
     try expectEqual(core.Command.quit, try f.app.handleKey(ctrl_c));
     try expectEqual(@as(usize, 1), (try f.view()).status.errors);
 }
+
+test "keymap: an empty list unbinds an action; a shadowed prefix binding is reported" {
+    var f = try Fixture.init("/r");
+    defer f.deinit();
+    try f.add(&.{}, &.{ dir("a", 2), dir("b", 1) });
+    try f.app.loadKeymap(".{ .trash = .{}, .down = \"g\" }");
+    try expectEqual(core.Command.none, try f.keys("x"));
+    _ = try f.keys("!");
+    const log = (try f.view()).log;
+    try expectEqual(@as(usize, 1), log.len);
+    try expectEqualStrings("keymap: 'g' for 'down' never fires: 'gg' for 'top' starts with it", log[0]);
+}

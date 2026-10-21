@@ -60,6 +60,27 @@ pub const Seq = struct {
         return true;
     }
 
+    /// Vim-style text for messages, e.g. "g", "<C-d>".
+    pub fn format(s: *const Seq, buf: *[32]u8) []const u8 {
+        var n: usize = 0;
+        for (s.slice()) |k| {
+            const piece_buf = buf[n..];
+            const piece = if (k.ctrl)
+                std.fmt.bufPrint(piece_buf, "<C-{u}>", .{k.code}) catch break
+            else if (k.code > 0x10ffff)
+                std.fmt.bufPrint(piece_buf, "<{s}>", .{switch (k.code) {
+                    Key.UP => "up",
+                    Key.DOWN => "down",
+                    Key.LEFT => "left",
+                    else => "right",
+                }}) catch break
+            else
+                std.fmt.bufPrint(piece_buf, "{u}", .{k.code}) catch break;
+            n += piece.len;
+        }
+        return buf[0..n];
+    }
+
     /// True if `a` is a strict prefix of `b`.
     pub fn isPrefixOf(a: Seq, b: Seq) bool {
         if (a.len >= b.len) return false;
@@ -243,6 +264,11 @@ pub const Keymap = struct {
                         count += 1;
                     }
                 },
+                .empty_literal => {
+                    // `.action = .{}` unbinds the action.
+                    km.counts.set(action, 0);
+                    continue;
+                },
                 else => try logErr(gpa, errs, "keymap: '{s}' must be a string or list of strings, skipped", .{name}),
             }
             if (count == 0) continue;
@@ -254,7 +280,27 @@ pub const Keymap = struct {
                 km.add(action, s);
             }
         }
+        try km.logShadowed(gpa, errs);
         return km;
+    }
+
+    /// A binding that is a strict prefix of another (`g` vs `gg`) waits for the next key forever and never fires.
+    fn logShadowed(km: *const Keymap, gpa: Allocator, errs: *std.ArrayList([]u8)) Allocator.Error!void {
+        for (std.enums.values(Action)) |a| {
+            for (km.seqs.getPtrConst(a)[0..km.counts.get(a)]) |short| {
+                outer: for (std.enums.values(Action)) |b| {
+                    for (km.seqs.getPtrConst(b)[0..km.counts.get(b)]) |long| {
+                        if (!short.isPrefixOf(long)) continue;
+                        var sb: [32]u8 = undefined;
+                        var lb: [32]u8 = undefined;
+                        try logErr(gpa, errs, "keymap: '{s}' for '{s}' never fires: '{s}' for '{s}' starts with it", .{
+                            short.format(&sb), @tagName(a), long.format(&lb), @tagName(b),
+                        });
+                        break :outer;
+                    }
+                }
+            }
+        }
     }
 };
 
