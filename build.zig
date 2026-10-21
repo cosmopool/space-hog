@@ -4,6 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const vaxis = b.dependency("vaxis", .{ .target = target, .optimize = optimize }).module("vaxis");
+    const core = b.createModule(.{ .root_source_file = b.path("src/core.zig"), .target = target, .optimize = optimize });
 
     const exe = b.addExecutable(.{
         .name = "space-hog",
@@ -11,7 +12,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path(platformRoot(target.result.os.tag)),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "vaxis", .module = vaxis }},
+            .imports = &.{ .{ .name = "vaxis", .module = vaxis }, .{ .name = "core", .module = core } },
         }),
     });
     b.installArtifact(exe);
@@ -21,9 +22,16 @@ pub fn build(b: *std.Build) void {
     run_cmd.addPassthruArgs();
     b.step("run", "Run the app").dependOn(&run_cmd.step);
 
-    const tests = b.addTest(.{ .root_module = exe.root_module });
     const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&b.addRunArtifact(tests).step);
+    for ([_][]const u8{"test/core_test.zig"}) |file| {
+        const t = b.addTest(.{ .root_module = b.createModule(.{
+            .root_source_file = b.path(file),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "core", .module = core }},
+        }) });
+        test_step.dependOn(&b.addRunArtifact(t).step);
+    }
 
     // check: tests + Debug + ReleaseSafe + Linux cross-compile
     const check_step = b.step("check", "Tests, Debug and ReleaseSafe builds, Linux cross-compile");
@@ -37,13 +45,14 @@ pub fn build(b: *std.Build) void {
     for (variants) |v| {
         const t = b.resolveTargetQuery(.{ .os_tag = v.os, .cpu_arch = v.arch, .abi = if (v.os == .linux) .musl else null });
         const dep = b.dependency("vaxis", .{ .target = t, .optimize = v.mode }).module("vaxis");
+        const c_core = b.createModule(.{ .root_source_file = b.path("src/core.zig"), .target = t, .optimize = v.mode });
         const c = b.addExecutable(.{
             .name = "space-hog",
             .root_module = b.createModule(.{
                 .root_source_file = b.path(platformRoot(v.os)),
                 .target = t,
                 .optimize = v.mode,
-                .imports = &.{.{ .name = "vaxis", .module = dep }},
+                .imports = &.{ .{ .name = "vaxis", .module = dep }, .{ .name = "core", .module = c_core } },
             }),
         });
         check_step.dependOn(&c.step);
