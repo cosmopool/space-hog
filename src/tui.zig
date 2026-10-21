@@ -153,17 +153,8 @@ pub fn coreKey(k: vaxis.Key) ?core.Key {
     return .{ .code = k.codepoint };
 }
 
-/// Human-readable size like `du -h`: 1 decimal below 10, integer above; B K M G T P.
-pub fn fmtSize(buf: []u8, bytes: u64) []const u8 {
-    const units = "BKMGTP";
-    var v: f64 = @floatFromInt(bytes);
-    var u: usize = 0;
-    // 1023.5 so values that would print as "1024K" move up to "1.0M".
-    while (v >= 1023.5 and u + 1 < units.len) : (u += 1) v /= 1024;
-    if (u == 0) return std.fmt.bufPrint(buf, "{d}B", .{bytes}) catch "?";
-    if (v < 9.95) return std.fmt.bufPrint(buf, "{d:.1}{c}", .{ v, units[u] }) catch "?";
-    return std.fmt.bufPrint(buf, "{d:.0}{c}", .{ v, units[u] }) catch "?";
-}
+/// Human-readable size like `du -h` (shared with the core's log messages).
+pub const fmtSize = core.fmtSize;
 
 /// Makes an untrusted name safe to print: control bytes, escape sequences and invalid UTF-8 become `?`.
 pub fn clean(arena: Allocator, name: []const u8) Allocator.Error![]const u8 {
@@ -244,6 +235,13 @@ fn drawStatus(arena: Allocator, win: vaxis.Window, v: core.View) !void {
         try std.fmt.allocPrint(arena, " ⟳ scanning {d} files · {s}", .{ v.status.files, bytes });
     var col: u16 = 0;
     if (v.status.dry_run) col = win.printSegment(.{ .text = " DRY RUN ", .style = .{ .fg = .{ .index = 0 }, .bg = WARN, .bold = true } }, .{ .wrap = .none }).col;
+    if (v.status.last_dry_run.len > 0) {
+        // At most half the bar, so the scan stats stay visible.
+        const note = try clean(arena, v.status.last_dry_run["dry run: ".len..]);
+        const room = (win.width / 2) -| col;
+        const w = win.child(.{ .x_off = col, .width = room, .height = 1 });
+        col += w.printSegment(.{ .text = try std.fmt.allocPrint(arena, " {s}", .{note}), .style = .{ .fg = WARN } }, .{ .wrap = .none }).col;
+    }
     col = win.printSegment(.{ .text = left, .style = .{ .fg = if (v.status.scan_done) OK else WARN } }, .{ .wrap = .none, .col_offset = col }).col;
     if (v.status.errors > 0) {
         const e = try std.fmt.allocPrint(arena, "   ! {d} unreadable", .{v.status.errors});

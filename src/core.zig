@@ -66,6 +66,8 @@ pub const App = struct {
     scan_done: bool = false,
     /// Log entries that are dry-run notes, not errors.
     dry_logged: usize = 0,
+    /// Log index of the latest dry-run note, shown in the status bar.
+    last_dry_run: ?usize = null,
     scratch: std.ArrayList(NodeId) = .empty,
     sorted: std.ArrayList(NodeId) = .empty,
     path_buf: std.ArrayList(u8) = .empty,
@@ -239,6 +241,7 @@ pub const App = struct {
             .scan_done = app.scan_done,
             .errors = app.log.items.len - app.dry_logged,
             .dry_run = app.dry_run,
+            .last_dry_run = if (app.last_dry_run) |i| app.log.items[i] else "",
             .pending = try pendingText(arena, app.pending),
         };
 
@@ -386,12 +389,14 @@ pub const App = struct {
         var p: std.ArrayList(u8) = .empty;
         defer p.deinit(app.gpa);
         try app.tree.fullPath(id, &p, app.gpa);
-        const msg = try std.fmt.allocPrint(app.gpa, "dry run: would {s} {s} ({d} bytes)", .{
-            if (what == .trash) "trash" else "rm -r", p.items, app.tree.get(id).size,
+        var size_buf: [16]u8 = undefined;
+        const msg = try std.fmt.allocPrint(app.gpa, "dry run: would {s} {s} ({s})", .{
+            if (what == .trash) "trash" else "rm -r", p.items, fmtSize(&size_buf, app.tree.get(id).size),
         });
         errdefer app.gpa.free(msg);
         try app.log.append(app.gpa, msg);
         app.dry_logged += 1;
+        app.last_dry_run = app.log.items.len - 1;
         return .none;
     }
 
@@ -509,6 +514,18 @@ pub const App = struct {
         return .{ .rows = out, .cursor = cursor };
     }
 };
+
+/// Human-readable size like `du -h`: 1 decimal below 10, integer above; B K M G T P.
+pub fn fmtSize(buf: []u8, bytes: u64) []const u8 {
+    const units = "BKMGTP";
+    var v: f64 = @floatFromInt(bytes);
+    var u: usize = 0;
+    // 1023.5 so values that would print as "1024K" move up to "1.0M".
+    while (v >= 1023.5 and u + 1 < units.len) : (u += 1) v /= 1024;
+    if (u == 0) return std.fmt.bufPrint(buf, "{d}B", .{bytes}) catch "?";
+    if (v < 9.95) return std.fmt.bufPrint(buf, "{d:.1}{c}", .{ v, units[u] }) catch "?";
+    return std.fmt.bufPrint(buf, "{d:.0}{c}", .{ v, units[u] }) catch "?";
+}
 
 fn pendingText(arena: Allocator, seq: keymap.Seq) Allocator.Error![]const u8 {
     var out: std.ArrayList(u8) = .empty;

@@ -654,11 +654,12 @@ test "dry run: x and X+y never return trash/delete, they log what would happen" 
     try expectEqual(@as(usize, 0), v.status.errors);
     try expectNames(v.current, &.{ "a", "b" });
     try expectEqual(@as(u64, 150), v.size);
+    try expectEqualStrings("dry run: would rm -r /r/b (60B)", v.status.last_dry_run);
     _ = try f.keys("!");
     const log = (try f.view()).log;
     try expectEqual(@as(usize, 2), log.len);
-    try expectEqualStrings("dry run: would trash /r/a (90 bytes)", log[0]);
-    try expectEqualStrings("dry run: would rm -r /r/b (60 bytes)", log[1]);
+    try expectEqualStrings("dry run: would trash /r/a (90B)", log[0]);
+    try expectEqualStrings("dry run: would rm -r /r/b (60B)", log[1]);
 }
 
 test "dry run: random key sequences never produce a destructive command" {
