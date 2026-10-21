@@ -1,0 +1,69 @@
+name: ci
+
+# Every push: tests + checks on Linux and macOS.
+# Tags v*: after those pass, cross-compile release binaries and publish a GitHub release.
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      # Tests (core, scanner vs du, trash/rm on temp dirs, UI, fuzz corpus), Debug + ReleaseSafe builds,
+      # Linux cross-compiles.
+      - run: zig build check --summary all
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - name: Build release binaries
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          mkdir -p dist
+          # Linux: fully static (musl). macOS: only libSystem, which every Mac has.
+          for target in aarch64-macos x86_64-macos x86_64-linux-musl aarch64-linux-musl; do
+            name="space-hog-${tag}-${target}"
+            zig build -Doptimize=ReleaseSafe -Dstrip=true -Dtarget="${target}" --prefix "stage/${name}"
+            cp README.md "stage/${name}/"
+            tar -C stage -czf "dist/${name}.tar.gz" "${name}"
+          done
+          (cd dist && sha256sum -- *.tar.gz > SHA256SUMS)
+          ls -la dist
+          cat dist/SHA256SUMS
+      - name: Check the Linux binary runs
+        run: |
+          set -euo pipefail
+          bin="stage/space-hog-${GITHUB_REF_NAME}-x86_64-linux-musl/bin/space-hog"
+          file "${bin}" | grep -q "statically linked"
+          # Bad arguments are rejected before the terminal is touched, so this runs headless.
+          out="$("${bin}" -j abc 2>&1 || true)"
+          grep -q InvalidJobs <<<"${out}"
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          generate_release_notes: true

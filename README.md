@@ -187,6 +187,10 @@ Notes:
 
 ## Install / build
 
+**Prebuilt:** every `v*` tag publishes binaries on the [Releases](https://github.com/cosmopool/space-hog/releases) page for macOS (arm64, x86_64) and Linux (x86_64, arm64; fully static). Download the `.tar.gz` for your system, check it against `SHA256SUMS`, and put `bin/space-hog` on your `PATH`.
+
+**From source:**
+
 You need **Zig 0.17.0** ([download](https://ziglang.org/download/), or `zvm install 0.17.0`). The first build downloads the dependencies ([libvaxis](https://github.com/rockorager/libvaxis) and what it needs) into `zig-pkg/`; later builds work offline.
 
 ```bash

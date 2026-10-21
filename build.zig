@@ -4,7 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = addExe(b, target, optimize);
+    const strip = b.option(bool, "strip", "Strip debug info from the binary (release archives)") orelse false;
+    const exe = addExe(b, target, optimize, strip);
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -60,11 +61,11 @@ pub fn build(b: *std.Build) void {
     };
     for (variants) |v| {
         const t = b.resolveTargetQuery(.{ .os_tag = v.os, .cpu_arch = v.arch, .abi = if (v.os == .linux) .musl else null });
-        check_step.dependOn(&addExe(b, t, v.mode).step);
+        check_step.dependOn(&addExe(b, t, v.mode, false).step);
     }
 }
 
-fn addExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+fn addExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, strip: bool) *std.Build.Step.Compile {
     const vaxis = b.dependency("vaxis", .{ .target = target, .optimize = optimize }).module("vaxis");
     const core = b.createModule(.{ .root_source_file = b.path("src/core.zig"), .target = target, .optimize = optimize });
     const scan_pool = b.createModule(.{
@@ -99,6 +100,7 @@ fn addExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin
             .target = target,
             .optimize = optimize,
             .link_libc = true,
+            .strip = strip,
             .imports = &.{
                 .{ .name = "core", .module = core },
                 .{ .name = "scan_pool", .module = scan_pool },
