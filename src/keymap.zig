@@ -15,6 +15,9 @@ pub const Key = struct {
     pub const LEFT: u21 = 0x110002;
     pub const RIGHT: u21 = 0x110003;
 
+    /// Ctrl-C: always quits, reserved from the keymap.
+    pub const QUIT: Key = .{ .code = 'c', .ctrl = true };
+
     pub fn char(c: u21) Key {
         return .{ .code = c };
     }
@@ -204,10 +207,15 @@ pub const Keymap = struct {
             const val = fields.vals.at(@intCast(i)).get(&zoir);
             switch (val) {
                 .string_literal => |text| {
-                    if (Seq.parse(text)) |s| {
-                        parsed[0] = s;
+                    const parsed_one = Seq.parse(text);
+                    if (parsed_one == null) {
+                        try logErr(gpa, errs, "keymap: bad key '{s}' for '{s}', skipped", .{ text, name });
+                    } else if (parsed_one.?.keys[0].eql(Key.QUIT)) {
+                        try logErr(gpa, errs, "keymap: <C-c> is reserved for quit, skipped for '{s}'", .{name});
+                    } else {
+                        parsed[0] = parsed_one.?;
                         count = 1;
-                    } else try logErr(gpa, errs, "keymap: bad key '{s}' for '{s}', skipped", .{ text, name });
+                    }
                 },
                 .array_literal => |range| {
                     for (0..range.len) |j| {
@@ -223,6 +231,10 @@ pub const Keymap = struct {
                             try logErr(gpa, errs, "keymap: bad key '{s}' for '{s}', skipped", .{ text, name });
                             continue;
                         };
+                        if (s.keys[0].eql(Key.QUIT)) {
+                            try logErr(gpa, errs, "keymap: <C-c> is reserved for quit, skipped for '{s}'", .{name});
+                            continue;
+                        }
                         if (count == SEQS_PER_ACTION) {
                             try logErr(gpa, errs, "keymap: too many keys for '{s}', extra skipped", .{name});
                             break;

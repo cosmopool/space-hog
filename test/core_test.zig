@@ -688,3 +688,17 @@ test "paths stay absolute and exact for trees deeper than 512 levels" {
     try expect(std.mem.endsWith(u8, p, "/d/leaf"));
     try expectEqual(@as(usize, "/r".len + 700 * "/d".len + "/leaf".len), p.len);
 }
+
+test "Ctrl-C quits from any mode and cannot be rebound" {
+    var f = try Fixture.init("/r");
+    defer f.deinit();
+    try f.add(&.{}, &.{dir("a", 1)});
+    try f.app.loadKeymap(".{ .quit = \"Q\", .trash = \"<C-c>\" }");
+    const ctrl_c: Key = .{ .code = 'c', .ctrl = true };
+    try expectEqual(core.Command.quit, try f.app.handleKey(ctrl_c));
+    _ = try f.keys("X");
+    try expectEqual(core.Command.quit, try f.app.handleKey(ctrl_c));
+    _ = try f.keys("!");
+    try expectEqual(core.Command.quit, try f.app.handleKey(ctrl_c));
+    try expectEqual(@as(usize, 1), (try f.view()).status.errors);
+}

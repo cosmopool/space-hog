@@ -186,6 +186,8 @@ pub const App = struct {
     }
 
     pub fn handleKey(app: *App, key: Key) Allocator.Error!Command {
+        // Fixed escape hatch: Ctrl-C quits from any mode and cannot be rebound.
+        if (key.eql(keymap.Key.QUIT)) return .quit;
         if (app.mode == .prompt) {
             app.mode = .normal;
             const target = app.prompt_target;
