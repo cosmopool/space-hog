@@ -136,7 +136,7 @@ pub const Keymap = struct {
             .{ .down, &.{ "j", "<down>" } },
             .{ .up, &.{ "k", "<up>" } },
             .{ .parent, &.{ "h", "<left>" } },
-            .{ .enter, &.{ "l", "<right>" } },
+            .{ .enter, &.{ "l", "<right>", "<cr>" } },
             .{ .top, &.{"gg"} },
             .{ .bottom, &.{"G"} },
             .{ .half_down, &.{"<C-d>"} },

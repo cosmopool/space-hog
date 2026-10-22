@@ -378,7 +378,7 @@ test "C-d and C-u ask for a half-page scroll; moveCursor clamps at both ends" {
     try expectEqual(@as(usize, 0), (try f.view()).cursor);
 }
 
-test "arrow keys navigate like h/j/k/l" {
+test "arrow keys and Enter navigate like h/j/k/l" {
     var f = try Fixture.init("/r");
     defer f.deinit();
     try f.add(&.{}, &.{ dir("a", 5), dir("b", 4) });
@@ -391,6 +391,8 @@ test "arrow keys navigate like h/j/k/l" {
     const v = try f.view();
     try expectEqualStrings("/r", v.path);
     try expectEqual(@as(usize, 0), v.cursor);
+    _ = try f.app.handleKey(.{ .code = Key.ENTER });
+    try expectEqualStrings("/r/a", (try f.view()).path);
 }
 
 // ---- delete flow ----

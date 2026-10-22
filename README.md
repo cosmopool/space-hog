@@ -81,7 +81,7 @@ Markers after a size:
 |---|---|
 | `j` / `↓` | Down |
 | `k` / `↑` | Up |
-| `l` / `→` | Enter the selected directory |
+| `l` / `→` / `Enter` | Enter the selected directory |
 | `h` / `←` | Go to the parent directory |
 | `gg` | Jump to the top |
 | `G` | Jump to the bottom |
