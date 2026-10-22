@@ -7,13 +7,22 @@
 <text x="16.0" y="59.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
 <text x="24.6" y="59.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">/Users/you/Development</text>
 <text x="213.8" y="59.5" textLength="748.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                                                                       </text>
-<text x="16.0" y="77.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">──────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
-<rect x="16.0" y="82.0" width="946.0" height="18.0" fill="#2f3b63"/>
-<text x="16.0" y="95.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> /Users/you/Library/Mail: PermissionDenied                                                                    </text>
-<text x="16.0" y="113.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> /Users/you/Library/Safari: 3 entries vanished or could not be read                                           </text>
-<text x="16.0" y="131.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> dry run: would trash /Users/you/Development/game-engine (9.0G)                                               </text>
-<text x="16.0" y="149.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> dry run: would rm -r /Users/you/Development/ml-experiments (9.0G)                                            </text>
-<text x="16.0" y="167.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                                                                                              </text>
+<text x="16.0" y="77.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
+<text x="24.6" y="77.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">/dev/disk3s5</text>
+<text x="127.8" y="77.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
+<text x="213.8" y="77.5" textLength="464.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">██████████████████████████████████████████████████████</text>
+<text x="678.2" y="77.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#a9c1fb">░</text>
+<text x="686.8" y="77.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">░░░░░░░░░░░░</text>
+<text x="790.0" y="77.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">  free 79G</text>
+<text x="876.0" y="77.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#565f89"> → </text>
+<text x="901.8" y="77.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#9ece6a">88G</text>
+<text x="927.6" y="77.5" textLength="34.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">    </text>
+<text x="16.0" y="95.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">──────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<rect x="16.0" y="100.0" width="946.0" height="18.0" fill="#2f3b63"/>
+<text x="16.0" y="113.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> /Users/you/Library/Mail: PermissionDenied                                                                    </text>
+<text x="16.0" y="131.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> /Users/you/Library/Safari: 3 entries vanished or could not be read                                           </text>
+<text x="16.0" y="149.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> dry run: would trash /Users/you/Development/game-engine (9.0G)                                               </text>
+<text x="16.0" y="167.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> dry run: would rm -r /Users/you/Development/ml-experiments (9.0G)                                            </text>
 <text x="16.0" y="185.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                                                                                              </text>
 <text x="16.0" y="203.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                                                                                              </text>
 <text x="16.0" y="221.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                                                                                              </text>

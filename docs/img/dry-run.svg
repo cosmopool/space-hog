@@ -7,137 +7,142 @@
 <text x="16.0" y="59.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
 <text x="24.6" y="59.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">/Users/you/Development</text>
 <text x="213.8" y="59.5" textLength="748.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                                                                       </text>
-<text x="16.0" y="77.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">──────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
-<rect x="16.0" y="82.0" width="189.2" height="18.0" fill="#2f3b63"/>
-<text x="16.0" y="95.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7"> Development      41G </text>
-<text x="205.2" y="95.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
-<text x="213.8" y="95.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="95.5" textLength="94.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">android-app</text>
-<text x="317.0" y="95.5" textLength="240.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                            </text>
-<text x="557.8" y="95.5" textLength="34.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">18G </text>
-<text x="592.2" y="95.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
-<text x="600.8" y="95.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="609.4" y="95.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">assets</text>
-<text x="661.0" y="95.5" textLength="275.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                </text>
-<text x="936.2" y="95.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">0B </text>
-<text x="16.0" y="113.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="113.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">Library</text>
-<text x="84.8" y="113.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">         </text>
-<text x="162.2" y="113.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">38G? </text>
+<text x="16.0" y="77.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
+<text x="24.6" y="77.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">/dev/disk3s5</text>
+<text x="127.8" y="77.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
+<text x="213.8" y="77.5" textLength="464.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">██████████████████████████████████████████████████████</text>
+<text x="678.2" y="77.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#a9c1fb">░</text>
+<text x="686.8" y="77.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">░░░░░░░░░░░░</text>
+<text x="790.0" y="77.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">  free 79G</text>
+<text x="876.0" y="77.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#565f89"> → </text>
+<text x="901.8" y="77.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#9ece6a">88G</text>
+<text x="927.6" y="77.5" textLength="34.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">    </text>
+<text x="16.0" y="95.5" textLength="946.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">──────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<rect x="16.0" y="100.0" width="189.2" height="18.0" fill="#2f3b63"/>
+<text x="16.0" y="113.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7"> Development      41G </text>
 <text x="205.2" y="113.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
-<rect x="213.8" y="100.0" width="378.4" height="18.0" fill="#2f3b63"/>
-<text x="213.8" y="113.5" textLength="378.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7"> game-engine                           9.0G </text>
+<text x="213.8" y="113.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
+<text x="222.4" y="113.5" textLength="94.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">android-app</text>
+<text x="317.0" y="113.5" textLength="240.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                            </text>
+<text x="557.8" y="113.5" textLength="34.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">18G </text>
 <text x="592.2" y="113.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
 <text x="600.8" y="113.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="609.4" y="113.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">src</text>
-<text x="635.2" y="113.5" textLength="301.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                   </text>
+<text x="609.4" y="113.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">assets</text>
+<text x="661.0" y="113.5" textLength="275.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                </text>
 <text x="936.2" y="113.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">0B </text>
 <text x="16.0" y="131.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="131.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">Downloads</text>
-<text x="102.0" y="131.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">       </text>
-<text x="162.2" y="131.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">9.0G </text>
+<text x="24.6" y="131.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">Library</text>
+<text x="84.8" y="131.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">         </text>
+<text x="162.2" y="131.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">38G? </text>
 <text x="205.2" y="131.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
-<text x="213.8" y="131.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="131.5" textLength="120.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">ml-experiments</text>
-<text x="342.8" y="131.5" textLength="206.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                        </text>
-<text x="549.2" y="131.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">9.0G </text>
+<rect x="213.8" y="118.0" width="378.4" height="18.0" fill="#2f3b63"/>
+<text x="213.8" y="131.5" textLength="378.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7"> game-engine                           9.0G </text>
 <text x="592.2" y="131.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
 <text x="600.8" y="131.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="609.4" y="131.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">target</text>
-<text x="661.0" y="131.5" textLength="275.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                </text>
+<text x="609.4" y="131.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">src</text>
+<text x="635.2" y="131.5" textLength="301.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                   </text>
 <text x="936.2" y="131.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">0B </text>
 <text x="16.0" y="149.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="149.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">Movies</text>
-<text x="76.2" y="149.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
-<text x="162.2" y="149.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">6.0G │</text>
+<text x="24.6" y="149.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">Downloads</text>
+<text x="102.0" y="149.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">       </text>
+<text x="162.2" y="149.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">9.0G </text>
+<text x="205.2" y="149.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
 <text x="213.8" y="149.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="149.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">website</text>
-<text x="282.6" y="149.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
-<text x="549.2" y="149.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">2.0G │</text>
-<text x="600.8" y="149.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
+<text x="222.4" y="149.5" textLength="120.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">ml-experiments</text>
+<text x="342.8" y="149.5" textLength="206.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                        </text>
+<text x="549.2" y="149.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">9.0G </text>
+<text x="592.2" y="149.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
+<text x="600.8" y="149.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
+<text x="609.4" y="149.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">target</text>
+<text x="661.0" y="149.5" textLength="275.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                </text>
+<text x="936.2" y="149.5" textLength="25.8" lengthAdjust="spacingAndGlyphs" fill="#7aa2f7">0B </text>
 <text x="16.0" y="167.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="167.5" textLength="68.8" lengthAdjust="spacingAndGlyphs" fill="#565f89">Pictures</text>
-<text x="93.4" y="167.5" textLength="68.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">        </text>
-<text x="162.2" y="167.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">3.0G │</text>
+<text x="24.6" y="167.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">Movies</text>
+<text x="76.2" y="167.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
+<text x="162.2" y="167.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">6.0G │</text>
 <text x="213.8" y="167.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="167.5" textLength="129.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">rust-playground</text>
-<text x="351.4" y="167.5" textLength="197.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                       </text>
-<text x="549.2" y="167.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">1.0G │</text>
+<text x="222.4" y="167.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">website</text>
+<text x="282.6" y="167.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
+<text x="549.2" y="167.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">2.0G │</text>
 <text x="600.8" y="167.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="185.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="185.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">.cache</text>
-<text x="76.2" y="185.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
-<text x="162.2" y="185.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">2.0G │</text>
+<text x="24.6" y="185.5" textLength="68.8" lengthAdjust="spacingAndGlyphs" fill="#565f89">Pictures</text>
+<text x="93.4" y="185.5" textLength="68.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">        </text>
+<text x="162.2" y="185.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">3.0G │</text>
 <text x="213.8" y="185.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="185.5" textLength="111.8" lengthAdjust="spacingAndGlyphs" fill="#565f89">old-prototype</text>
-<text x="334.2" y="185.5" textLength="215.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                         </text>
-<text x="549.2" y="185.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">600M │</text>
+<text x="222.4" y="185.5" textLength="129.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">rust-playground</text>
+<text x="351.4" y="185.5" textLength="197.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                       </text>
+<text x="549.2" y="185.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">1.0G │</text>
 <text x="600.8" y="185.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="203.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="203.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#565f89">Documents</text>
-<text x="102.0" y="203.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">       </text>
-<text x="162.2" y="203.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">1.0G │</text>
+<text x="24.6" y="203.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">.cache</text>
+<text x="76.2" y="203.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
+<text x="162.2" y="203.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">2.0G │</text>
 <text x="213.8" y="203.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="203.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">archive-2023</text>
-<text x="325.6" y="203.5" textLength="223.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                          </text>
-<text x="549.2" y="203.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">450M │</text>
+<text x="222.4" y="203.5" textLength="111.8" lengthAdjust="spacingAndGlyphs" fill="#565f89">old-prototype</text>
+<text x="334.2" y="203.5" textLength="215.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                         </text>
+<text x="549.2" y="203.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">600M │</text>
 <text x="600.8" y="203.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="221.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="221.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">Music</text>
-<text x="67.6" y="221.5" textLength="94.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">           </text>
-<text x="162.2" y="221.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">400M │</text>
+<text x="24.6" y="221.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#565f89">Documents</text>
+<text x="102.0" y="221.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">       </text>
+<text x="162.2" y="221.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">1.0G │</text>
 <text x="213.8" y="221.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="221.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#565f89">cli-tools</text>
-<text x="299.8" y="221.5" textLength="249.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                             </text>
-<text x="549.2" y="221.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">300M │</text>
+<text x="222.4" y="221.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">archive-2023</text>
+<text x="325.6" y="221.5" textLength="223.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                          </text>
+<text x="549.2" y="221.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">450M │</text>
 <text x="600.8" y="221.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="239.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="239.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">Desktop</text>
-<text x="84.8" y="239.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
-<text x="170.8" y="239.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">30M │</text>
+<text x="24.6" y="239.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">Music</text>
+<text x="67.6" y="239.5" textLength="94.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">           </text>
+<text x="162.2" y="239.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">400M │</text>
 <text x="213.8" y="239.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="239.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">talks</text>
-<text x="265.4" y="239.5" textLength="283.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                 </text>
-<text x="549.2" y="239.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">120M │</text>
+<text x="222.4" y="239.5" textLength="77.4" lengthAdjust="spacingAndGlyphs" fill="#565f89">cli-tools</text>
+<text x="299.8" y="239.5" textLength="249.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                             </text>
+<text x="549.2" y="239.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">300M │</text>
 <text x="600.8" y="239.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="257.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="257.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">.config</text>
+<text x="24.6" y="257.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">Desktop</text>
 <text x="84.8" y="257.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
-<text x="170.8" y="257.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">12M │</text>
+<text x="170.8" y="257.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">30M │</text>
 <text x="213.8" y="257.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="257.5" textLength="68.8" lengthAdjust="spacingAndGlyphs" fill="#565f89">dotfiles</text>
-<text x="291.2" y="257.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
-<text x="557.8" y="257.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">40M │</text>
+<text x="222.4" y="257.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">talks</text>
+<text x="265.4" y="257.5" textLength="283.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                 </text>
+<text x="549.2" y="257.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">120M │</text>
 <text x="600.8" y="257.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="275.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="275.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">.zsh_history</text>
-<text x="127.8" y="275.5" textLength="34.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">    </text>
-<text x="162.2" y="275.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">2.0M │</text>
+<text x="24.6" y="275.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">.config</text>
+<text x="84.8" y="275.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">          </text>
+<text x="170.8" y="275.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">12M │</text>
 <text x="213.8" y="275.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="275.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">notes</text>
-<text x="265.4" y="275.5" textLength="283.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                 </text>
-<text x="549.2" y="275.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">8.0M │</text>
+<text x="222.4" y="275.5" textLength="68.8" lengthAdjust="spacingAndGlyphs" fill="#565f89">dotfiles</text>
+<text x="291.2" y="275.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
+<text x="557.8" y="275.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">40M │</text>
 <text x="600.8" y="275.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="293.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="24.6" y="293.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">.gitconfig</text>
-<text x="110.6" y="293.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">      </text>
-<text x="162.2" y="293.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">4.0K │</text>
+<text x="24.6" y="293.5" textLength="103.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">.zsh_history</text>
+<text x="127.8" y="293.5" textLength="34.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">    </text>
+<text x="162.2" y="293.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">2.0M │</text>
 <text x="213.8" y="293.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="293.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">scripts</text>
-<text x="282.6" y="293.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
-<text x="549.2" y="293.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">3.0M │</text>
+<text x="222.4" y="293.5" textLength="43.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">notes</text>
+<text x="265.4" y="293.5" textLength="283.8" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                 </text>
+<text x="549.2" y="293.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">8.0M │</text>
 <text x="600.8" y="293.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
-<text x="16.0" y="311.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                      </text>
-<text x="205.2" y="311.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
+<text x="16.0" y="311.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
+<text x="24.6" y="311.5" textLength="86.0" lengthAdjust="spacingAndGlyphs" fill="#565f89">.gitconfig</text>
+<text x="110.6" y="311.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">      </text>
+<text x="162.2" y="311.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">4.0K │</text>
 <text x="213.8" y="311.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
-<text x="222.4" y="311.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">TODO.md</text>
+<text x="222.4" y="311.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">scripts</text>
 <text x="282.6" y="311.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
-<text x="549.2" y="311.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">4.0K │</text>
+<text x="549.2" y="311.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">3.0M │</text>
 <text x="600.8" y="311.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="329.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                      </text>
 <text x="205.2" y="329.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
-<text x="213.8" y="329.5" textLength="378.4" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                            </text>
-<text x="592.2" y="329.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
+<text x="213.8" y="329.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5"> </text>
+<text x="222.4" y="329.5" textLength="60.2" lengthAdjust="spacingAndGlyphs" fill="#565f89">TODO.md</text>
+<text x="282.6" y="329.5" textLength="266.6" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                               </text>
+<text x="549.2" y="329.5" textLength="51.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">4.0K │</text>
 <text x="600.8" y="329.5" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                                          </text>
 <text x="16.0" y="347.5" textLength="189.2" lengthAdjust="spacingAndGlyphs" fill="#c0caf5">                      </text>
 <text x="205.2" y="347.5" textLength="8.6" lengthAdjust="spacingAndGlyphs" fill="#565f89">│</text>
