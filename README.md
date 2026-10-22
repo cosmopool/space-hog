@@ -251,3 +251,5 @@ zig build check    # before calling something done: tests, Debug + ReleaseSafe b
 ## License
 
 [BSD 3-Clause](LICENSE) © 2026 Kaio Delphino. You can use, modify and redistribute it, in source or binary form, as long as you keep the copyright notice and license text, and you don't use the author's name to promote derived products without permission.
+
+The binaries include third-party code (Zig standard library, libvaxis, zigimg, uucode, and musl in the static Linux builds), all under permissive licenses; their notices are in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) and ship in every release archive.

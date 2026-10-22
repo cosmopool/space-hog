@@ -94,10 +94,10 @@ jobs:
             read -r target label <<<"${entry}"
             name="space-hog-${tag}-${label}"
             zig build -Doptimize=ReleaseSafe -Dstrip=true -Dtarget="${target}" --prefix "stage/${label}"
-            # Archive layout: space-hog-<tag>-<target>/{space-hog,README.md,LICENSE}, no bin/ directory.
-            # LICENSE must ship with binaries (BSD-3-Clause, clause 2).
+            # Archive layout: space-hog-<tag>-<target>/{space-hog,README.md,LICENSE,THIRD_PARTY_LICENSES}, no bin/.
+            # Both license files must ship with binaries (BSD-3 clause 2; MIT notices of bundled dependencies).
             mkdir -p "pkg/${name}"
-            cp "stage/${label}/bin/space-hog" README.md LICENSE "pkg/${name}/"
+            cp "stage/${label}/bin/space-hog" README.md LICENSE THIRD_PARTY_LICENSES "pkg/${name}/"
             tar -C pkg -czf "dist/${name}.tar.gz" "${name}"
           done
           (cd dist && sha256sum -- *.tar.gz > SHA256SUMS)
