@@ -94,6 +94,7 @@ pub fn execute(gpa: Allocator, io: std.Io, env: Env, app: *core.App, scanner: *s
             if (!try parentsUnchanged(gpa, app, scanner, id, path, "trash")) return false;
             if (!try noMountInside(gpa, app, path, "trash")) return false;
             if (trash(gpa, env.trash_root, path)) |_| app.markDeleted(id) else |e| try logFailure(gpa, app, "trash", path, e);
+            try readDisk(gpa, app);
         },
         .delete => |id| {
             const path = try gpa.dupe(u8, try app.path(id));
@@ -106,8 +107,12 @@ pub fn execute(gpa: Allocator, io: std.Io, env: Env, app: *core.App, scanner: *s
                 const again = try app.rescan(id);
                 if (again != .nil) try scanner.pushLocked(&.{again});
             }
+            try readDisk(gpa, app);
         },
-        .rescan => |id| try scanner.pushLocked(&.{id}),
+        .rescan => |id| {
+            try scanner.pushLocked(&.{id});
+            try readDisk(gpa, app);
+        },
         .scroll => |s| {
             const n: i64 = @intCast(if (s.amount == .half_page) @max(page_rows / 2, 1) else s.lines);
             try app.moveCursor(if (s.down) n else -n);
@@ -116,10 +121,87 @@ pub fn execute(gpa: Allocator, io: std.Io, env: Env, app: *core.App, scanner: *s
             try scanner.registerLocked(app.root);
             try scanner.pushLocked(ids);
             try listOuter(gpa, app, listing);
+            try readDisk(gpa, app);
         },
     }
     return false;
 }
+
+/// Feeds the core the size and free space of the scan root's volume. If statfs fails the bar is hidden.
+pub fn readDisk(gpa: Allocator, app: *core.App) Allocator.Error!void {
+    const root = try gpa.dupeSentinel(u8, try app.path(app.root), 0);
+    defer gpa.free(root);
+    var st: Statfs = undefined;
+    if (statfs(root, &st) != 0) return app.setDisk("", 0, 0);
+    switch (builtin.os.tag) {
+        .macos => try app.setDisk(std.mem.sliceTo(&st.mntfromname, 0), st.blocks * st.bsize, st.bavail * st.bsize),
+        else => {
+            const unit: u64 = if (st.frsize != 0) st.frsize else st.bsize;
+            try app.setDisk(mountPoint(root), st.blocks * unit, st.bavail * unit);
+        },
+    }
+}
+
+/// The deepest directory above `path` (a realpath) that is on another device is the parent of the mount point.
+/// Temporarily writes NULs into `path`; restores it before returning.
+fn mountPoint(path: [:0]u8) []const u8 {
+    var top: scan.Stat = undefined;
+    if (scan.lstatAt(c.AT.FDCWD, path, &top) != 0) return path;
+    var end = path.len;
+    while (end > 1) {
+        const slash = std.mem.lastIndexOfScalar(u8, path[0..end], '/') orelse break;
+        const parent_end = @max(slash, 1);
+        const saved = path[parent_end];
+        path[parent_end] = 0;
+        var st: scan.Stat = undefined;
+        const same = scan.lstatAt(c.AT.FDCWD, path[0..parent_end :0], &st) == 0 and st.dev == top.dev;
+        path[parent_end] = saved;
+        if (!same) break;
+        end = parent_end;
+    }
+    return path[0..end];
+}
+
+const Statfs = switch (builtin.os.tag) {
+    .macos => extern struct {
+        bsize: u32,
+        iosize: i32,
+        blocks: u64,
+        bfree: u64,
+        bavail: u64,
+        files: u64,
+        ffree: u64,
+        fsid: [2]i32,
+        owner: u32,
+        type: u32,
+        flags: u32,
+        fssubtype: u32,
+        fstypename: [16]u8,
+        mntonname: [1024]u8,
+        mntfromname: [1024]u8,
+        flags_ext: u32,
+        reserved: [7]u32,
+    },
+    // 64-bit Linux, musl and glibc alike.
+    else => extern struct {
+        type: c_ulong,
+        bsize: c_ulong,
+        blocks: u64,
+        bfree: u64,
+        bavail: u64,
+        files: u64,
+        ffree: u64,
+        fsid: [2]c_int,
+        namelen: c_ulong,
+        frsize: c_ulong,
+        flags: c_ulong,
+        spare: [4]c_ulong,
+    },
+};
+// Intel macOS keeps the 32-bit-inode statfs under the plain name.
+const statfs = @extern(*const fn (path: [*:0]const u8, buf: *Statfs) callconv(.c) c_int, .{
+    .name = if (builtin.os.tag == .macos and builtin.cpu.arch == .x86_64) "statfs$INODE64" else "statfs",
+});
 
 /// Feeds the core the unscanned listing of the scan root's real parent.
 pub fn listOuter(gpa: Allocator, app: *core.App, listing: *scan.Listing) !void {

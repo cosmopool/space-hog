@@ -140,6 +140,7 @@ fn hostileApp() !core.App {
     _ = try app.addDir(dirs[0], &.{.{ .name = "\x1b[5minner", .kind = .file, .size = 1 }});
     try app.setOuter(&.{.{ .name = "\x1bouter", .kind = .dir, .size = 0 }});
     try app.logError("bad\x1b[2Jlog\nline");
+    try app.setDisk("\x1b[2J/dev/\x07disk", 1 << 40, 1 << 39);
     return app;
 }
 
@@ -156,9 +157,9 @@ test "paint: hostile names never put control characters on screen, in every mode
             for (keys) |k| _ = try a.handleKey(core.Key.char(k));
             var c = try Canvas.init(sz[0], sz[1]);
             defer c.deinit();
-            var scroll: tui.Scroll = .{};
+            var frame: tui.Frame = .{};
             _ = arena.reset(.retain_capacity);
-            try tui.paint(arena.allocator(), c.window(), try a.view(arena.allocator()), &scroll);
+            try tui.paint(arena.allocator(), c.window(), try a.view(arena.allocator()), &frame);
             try c.expectNoControls();
         }
     }
@@ -181,12 +182,12 @@ test "paint: the selected row is always visible while moving through a long list
     for ([_]u16{ 6, 10, 24, 40 }) |h| {
         var c = try Canvas.init(80, h);
         defer c.deinit();
-        var scroll: tui.Scroll = .{};
+        var frame: tui.Frame = .{};
         for (0..400) |_| {
             try app.moveCursor(rnd.intRangeAtMost(i64, -40, 40));
             _ = arena.reset(.retain_capacity);
             const v = try app.view(arena.allocator());
-            try tui.paint(arena.allocator(), c.window(), v, &scroll);
+            try tui.paint(arena.allocator(), c.window(), v, &frame);
             const sel = v.current[v.cursor].name;
             var seen = false;
             for (2..h - 2) |y| {
@@ -232,8 +233,8 @@ test "paint: the delete prompt shows the target's size (text outlives the paint 
     defer arena.deinit();
     var c = try Canvas.init(80, 24);
     defer c.deinit();
-    var scroll: tui.Scroll = .{};
-    try tui.paint(arena.allocator(), c.window(), try app.view(arena.allocator()), &scroll);
+    var frame: tui.Frame = .{};
+    try tui.paint(arena.allocator(), c.window(), try app.view(arena.allocator()), &frame);
     // Reuse the stack below this frame (where paint's locals lived), then read the screen.
     smashStack();
     // The size is the line right under the prompt's path ("9.0G" also appears in the list and status bar).
@@ -243,6 +244,136 @@ test "paint: the delete prompt shows the target's size (text outlives the paint 
     }
     const size_line = try c.rowText(arena.allocator(), path_row.? + 1);
     try expect(std.mem.indexOf(u8, size_line, "9.0G") != null);
+}
+
+// ---- free-space bar ----
+
+/// Row 1 cells by kind: used and kept (`█`), the selection's blinking share (rgb `░`), free (dim `░`).
+const Bar = struct { kept: usize = 0, gain: usize = 0, free: usize = 0, gain_color: ?vaxis.Color = null };
+
+fn readBar(c: *Canvas) Bar {
+    var b: Bar = .{};
+    for (c.screen.buf[c.screen.width .. 2 * c.screen.width]) |cell| {
+        if (std.mem.eql(u8, cell.char.grapheme, "█")) {
+            b.kept += 1;
+        } else if (std.mem.eql(u8, cell.char.grapheme, "░")) {
+            if (cell.style.fg == .rgb) {
+                b.gain += 1;
+                b.gain_color = cell.style.fg;
+            } else b.free += 1;
+        }
+    }
+    return b;
+}
+
+const G = 1 << 30;
+
+fn diskApp() !core.App {
+    var app = try core.App.init(gpa, "/r");
+    _ = try app.addDir(app.root, &.{
+        .{ .name = "a", .kind = .dir, .size = 30 * G },
+        .{ .name = "b", .kind = .dir, .size = 10 * G },
+        .{ .name = "c", .kind = .file, .size = 1024 },
+    });
+    try app.setDisk("disk0", 100 * G, 40 * G);
+    return app;
+}
+
+fn paintApp(c: *Canvas, arena: *std.heap.ArenaAllocator, app: *core.App, frame: *tui.Frame) !Bar {
+    _ = arena.reset(.retain_capacity);
+    try tui.paint(arena.allocator(), c.window(), try app.view(arena.allocator()), frame);
+    return readBar(c);
+}
+
+/// `part` of `whole` bar cells, within one cell of rounding.
+fn expectShare(cells: usize, part: u64, whole: u64, width: usize) !void {
+    const want = @as(f64, @floatFromInt(part)) / @as(f64, @floatFromInt(whole)) * @as(f64, @floatFromInt(width));
+    try expect(@abs(@as(f64, @floatFromInt(cells)) - want) <= 1);
+}
+
+test "paint: the free-space bar is the whole disk to scale, with the selection carved out of the used part" {
+    var app = try diskApp();
+    defer app.deinit();
+    var arena: std.heap.ArenaAllocator = .init(gpa);
+    defer arena.deinit();
+    var c = try Canvas.init(110, 26);
+    defer c.deinit();
+    var frame: tui.Frame = .{};
+
+    const on_a = try paintApp(&c, &arena, &app, &frame);
+    const width = on_a.kept + on_a.gain + on_a.free;
+    try expectShare(on_a.kept + on_a.gain, 60 * G, 100 * G, width);
+    try expectShare(on_a.gain, 30 * G, 100 * G, width);
+    const row = try c.rowText(arena.allocator(), 1);
+    try expect(std.mem.indexOf(u8, row, "disk0") != null);
+    try expect(std.mem.indexOf(u8, row, "free 40G → 70G") != null);
+
+    try app.moveCursor(1);
+    const on_b = try paintApp(&c, &arena, &app, &frame);
+    try expectEqual(width, on_b.kept + on_b.gain + on_b.free);
+    try expectEqual(on_a.kept + on_a.gain, on_b.kept + on_b.gain);
+    try expectShare(on_b.gain, 10 * G, 100 * G, width);
+
+    // A selection too small for a cell still shows one, so it never vanishes.
+    try app.moveCursor(1);
+    try expectEqual(@as(usize, 1), (try paintApp(&c, &arena, &app, &frame)).gain);
+
+    // More than the used space can't be freed: the whole used part blinks, nothing is kept.
+    try app.moveCursor(-2);
+    try app.setDisk("disk0", 100 * G, 90 * G);
+    const capped = try paintApp(&c, &arena, &app, &frame);
+    try expectEqual(@as(usize, 0), capped.kept);
+    try expectShare(capped.gain, 10 * G, 100 * G, width);
+
+    // Unknown disk: no bar at all.
+    try app.setDisk("", 0, 0);
+    const none = try paintApp(&c, &arena, &app, &frame);
+    try expectEqual(@as(usize, 0), none.kept + none.gain + none.free);
+    try expectEqual(@as(u16, 0), frame.gain_x1 - frame.gain_x0);
+}
+
+test "paint: the blink clock survives selection changes and only sets the blinking cells' color" {
+    var app = try diskApp();
+    defer app.deinit();
+    var arena: std.heap.ArenaAllocator = .init(gpa);
+    defer arena.deinit();
+    var c = try Canvas.init(110, 26);
+    defer c.deinit();
+    var frame: tui.Frame = .{ .step = 7 };
+
+    const first = try paintApp(&c, &arena, &app, &frame);
+    try expect(std.meta.eql(first.gain_color.?, tui.blinkColor(7)));
+    try expectEqual(first.gain, frame.gain_x1 - frame.gain_x0);
+
+    try app.moveCursor(1);
+    _ = try app.handleKey(core.Key.char('l'));
+    _ = try app.handleKey(core.Key.char('h'));
+    const moved = try paintApp(&c, &arena, &app, &frame);
+    try expectEqual(@as(u32, 7), frame.step);
+    try expect(std.meta.eql(moved.gain_color.?, tui.blinkColor(7)));
+
+    frame.step = 27;
+    const later = try paintApp(&c, &arena, &app, &frame);
+    try expectEqual(moved.kept, later.kept);
+    try expectEqual(moved.gain, later.gain);
+    try expect(std.meta.eql(later.gain_color.?, tui.blinkColor(27)));
+}
+
+test "blinkColor: a linear fade down and back up that never reaches the free-space shade" {
+    const rgb = struct {
+        fn of(step: u32) [3]u8 {
+            return tui.blinkColor(step).rgb;
+        }
+    }.of;
+    try expectEqual([3]u8{ 0xa9, 0xc1, 0xfb }, rgb(0));
+    try expectEqual([3]u8{ 0x77, 0x86, 0xb7 }, rgb(20));
+    for (0..200) |s| {
+        const step: u32 = @intCast(s);
+        try expectEqual(rgb(step), rgb(step + 40));
+        try expectEqual(rgb(step % 40), rgb((40 - step % 40) % 40));
+        // Neighbouring steps differ by an even share of the range: no jumps anywhere in the cycle.
+        for (rgb(step), rgb(step + 1)) |x, y| try expect(@abs(@as(i16, x) - y) <= 5);
+    }
 }
 
 noinline fn smashStack() void {

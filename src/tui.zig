@@ -10,6 +10,8 @@ pub const Event = union(enum) {
     winsize: vaxis.Winsize,
     /// Posted by scan workers; just triggers a redraw.
     progress,
+    /// Posted every `TICK_MS` by the ticker thread; advances the blink clock.
+    tick,
 };
 
 const HIGHLIGHT: vaxis.Color = .{ .rgb = .{ 0x7a, 0xa2, 0xf7 } };
@@ -18,6 +20,16 @@ const SEL_BG: vaxis.Color = .{ .rgb = .{ 0x2f, 0x3b, 0x63 } };
 const WARN: vaxis.Color = .{ .rgb = .{ 0xe0, 0xaf, 0x68 } };
 const OK: vaxis.Color = .{ .rgb = .{ 0x9e, 0xce, 0x6a } };
 const DANGER: vaxis.Color = .{ .rgb = .{ 0xf7, 0x76, 0x8e } };
+/// The part of the free-space bar that deleting the selection would free fades from GAIN to GAIN_LOW and back.
+const GAIN = [3]u8{ 0xa9, 0xc1, 0xfb };
+/// 60% of the way from GAIN to the free-space shade (#565f89), so the segment never disappears.
+const GAIN_LOW = [3]u8{ 0x77, 0x86, 0xb7 };
+
+const TICK_MS = 50;
+/// Ticks per fade direction: 20 × 50 ms = 1 s down, 1 s back up.
+const BLINK_STEPS = 20;
+/// Room kept for "free 999G → 999G" so the bar doesn't change width as the numbers do.
+const READOUT_MIN = 18;
 
 pub const Tui = struct {
     gpa: Allocator,
@@ -26,8 +38,10 @@ pub const Tui = struct {
     vx: vaxis.Vaxis,
     loop: vaxis.Loop(Event),
     tty_buf: [4096]u8 = undefined,
-    scroll: Scroll = .{},
+    frame: Frame = .{},
     resize_handler: bool = false,
+    ticker: ?std.Thread = null,
+    ticking: std.atomic.Value(bool) = .init(true),
 
     /// `t` must stay at a stable address (the loop keeps pointers into it).
     pub fn init(t: *Tui, gpa: Allocator, io: std.Io, env: *std.process.Environ.Map) !void {
@@ -43,9 +57,12 @@ pub const Tui = struct {
             try t.loop.installResizeHandler();
             t.resize_handler = true;
         }
+        t.ticker = try std.Thread.spawn(.{}, tickLoop, .{t});
     }
 
     pub fn deinit(t: *Tui) void {
+        t.ticking.store(false, .release);
+        if (t.ticker) |th| th.join();
         if (t.resize_handler) t.loop.uninstallResizeHandler();
         t.loop.stop();
         t.vx.deinit(t.gpa, t.tty.writer());
@@ -55,7 +72,25 @@ pub const Tui = struct {
     pub fn next(t: *Tui) !Event {
         const ev = try t.loop.nextEvent();
         if (ev == .winsize) try t.vx.resize(t.gpa, t.tty.writer(), ev.winsize);
+        if (ev == .tick) t.frame.step +%= 1;
         return ev;
+    }
+
+    fn tickLoop(t: *Tui) void {
+        while (t.ticking.load(.acquire)) {
+            t.io.sleep(.fromMilliseconds(TICK_MS), .awake) catch return;
+            _ = t.loop.tryPostEvent(.tick) catch {};
+        }
+    }
+
+    /// Recolors the blinking cells painted by the last `draw` for the current blink step. No view rebuild.
+    pub fn blink(t: *Tui) !void {
+        const f = t.frame;
+        if (f.gain_x1 <= f.gain_x0) return;
+        const win = t.vx.window();
+        var x = f.gain_x0;
+        while (x < f.gain_x1) : (x += 1) win.writeCell(x, f.gain_y, .{ .char = SHADE, .style = .{ .fg = blinkColor(f.step) } });
+        try t.vx.render(t.tty.writer());
     }
 
     /// Thread-safe wake-up from scan workers; drops the event if the queue is full.
@@ -66,22 +101,29 @@ pub const Tui = struct {
 
     /// Rows available for a column (used to turn "half page" into a row count).
     pub fn pageRows(t: *Tui) usize {
-        return t.vx.window().height -| 4;
+        return t.vx.window().height -| 5;
     }
 
     pub fn draw(t: *Tui, arena: Allocator, v: core.View) !void {
-        try paint(arena, t.vx.window(), v, &t.scroll);
+        try paint(arena, t.vx.window(), v, &t.frame);
         try t.vx.render(t.tty.writer());
     }
 };
 
-/// First visible row of the current column, kept across frames so the cursor stays on screen.
-/// Resets when the directory changes.
-pub const Scroll = struct {
+/// State kept across frames.
+pub const Frame = struct {
+    /// First visible row of the current column, so the cursor stays on screen. Resets when the directory changes.
     offset: usize = 0,
     path_hash: u64 = 0,
+    /// Global blink clock: advanced by `Event.tick`, never reset, so the fade stays smooth while the selection
+    /// and directory change.
+    step: u32 = 0,
+    /// The blinking cells painted last: row `gain_y`, columns `gain_x0..gain_x1` (empty when nothing blinks).
+    gain_y: u16 = 0,
+    gain_x0: u16 = 0,
+    gain_x1: u16 = 0,
 
-    fn update(s: *Scroll, v: core.View, h: usize) void {
+    fn scrollTo(s: *Frame, v: core.View, h: usize) void {
         const hash = std.hash.Wyhash.hash(0, v.path);
         if (hash != s.path_hash) {
             s.path_hash = hash;
@@ -94,15 +136,17 @@ pub const Scroll = struct {
     }
 };
 
-/// Draws `v` into `win` (any size, including tiny or zero). Pure apart from `scroll`; the app renders the
+/// Draws `v` into `win` (any size, including tiny or zero). Pure apart from `frame`; the app renders the
 /// result to the terminal, tests inspect the cells.
-pub fn paint(arena: Allocator, win: vaxis.Window, v: core.View, scroll: *Scroll) !void {
+pub fn paint(arena: Allocator, win: vaxis.Window, v: core.View, frame: *Frame) !void {
     win.clear();
-    if (win.width < 10 or win.height < 5) return;
+    frame.gain_x1 = frame.gain_x0;
+    if (win.width < 10 or win.height < 6) return;
 
     printLine(win, 0, 1, &.{.{ .text = try clean(arena, v.path), .style = .{ .fg = DIM } }});
-    const body_h = win.height - 3;
-    const body = win.child(.{ .y_off = 1, .height = body_h + 1 });
+    try drawDisk(arena, win, v, frame);
+    const body_h = win.height - 4;
+    const body = win.child(.{ .y_off = 2, .height = body_h + 1 });
     hline(body, 0, win.width);
     hline(body, body_h, win.width);
 
@@ -116,15 +160,81 @@ pub fn paint(arena: Allocator, win: vaxis.Window, v: core.View, scroll: *Scroll)
         vline(body, pw, 1, rows_h);
         vline(body, pw + cw + 1, 1, rows_h);
 
-        scroll.update(v, rows_h);
+        frame.scrollTo(v, rows_h);
         const parent_off = v.parent_cursor -| (rows_h / 2);
         try drawColumn(arena, body.child(.{ .x_off = cols[0].x, .y_off = 1, .width = cols[0].w, .height = rows_h }), v.parent, parent_off);
-        try drawColumn(arena, body.child(.{ .x_off = cols[1].x, .y_off = 1, .width = cols[1].w, .height = rows_h }), v.current, scroll.offset);
+        try drawColumn(arena, body.child(.{ .x_off = cols[1].x, .y_off = 1, .width = cols[1].w, .height = rows_h }), v.current, frame.offset);
         try drawColumn(arena, body.child(.{ .x_off = cols[2].x, .y_off = 1, .width = cols[2].w, .height = rows_h }), v.preview, 0);
     }
 
     try drawStatus(arena, win.child(.{ .y_off = win.height - 1, .height = 1 }), v);
-    if (v.prompt) |p| try drawPrompt(arena, win, p, v.status.dry_run);
+    if (v.prompt) |p| {
+        try drawPrompt(arena, win, p, v.status.dry_run);
+        frame.gain_x1 = frame.gain_x0; // the box may cover the bar on short screens: stop recoloring under it
+    }
+}
+
+const FULL: vaxis.Cell.Character = .{ .grapheme = "█", .width = 1 };
+const SHADE: vaxis.Cell.Character = .{ .grapheme = "░", .width = 1 };
+
+/// Color of the blinking segment at blink step `step`: a linear fade GAIN → GAIN_LOW → GAIN.
+pub fn blinkColor(step: u32) vaxis.Color {
+    const p = step % (2 * BLINK_STEPS);
+    const t = if (p <= BLINK_STEPS) p else 2 * BLINK_STEPS - p;
+    var rgb: [3]u8 = undefined;
+    for (&rgb, GAIN, GAIN_LOW) |*o, hi, lo| o.* = @intCast((@as(u32, hi) * (BLINK_STEPS - t) + @as(u32, lo) * t) / BLINK_STEPS);
+    return .{ .rgb = rgb };
+}
+
+/// Row 1: the volume's name over the parent column, then a bar of the whole disk drawn to scale (used `█`, free
+/// `░`) and "free 79G → 97G". The selection's size is carved out of the used part as blinking `░`: what
+/// deleting it would free.
+fn drawDisk(arena: Allocator, win: vaxis.Window, v: core.View, frame: *Frame) !void {
+    const d = v.disk;
+    if (d.total == 0) return;
+    const pw = win.width / 5;
+    _ = win.child(.{ .x_off = 1, .y_off = 1, .width = pw -| 2, .height = 1 }).printSegment(.{ .text = try clean(arena, d.name), .style = .{ .fg = DIM } }, .{ .wrap = .none });
+
+    const used = d.total - d.free;
+    const sel: ?core.Row = if (v.current.len > 0 and v.current[v.cursor].selected) v.current[v.cursor] else null;
+    const gain = if (sel) |r| @min(r.size, used) else 0;
+    var b1: [16]u8 = undefined;
+    var b2: [16]u8 = undefined;
+    const now = try std.fmt.allocPrint(arena, "free {s}", .{fmtSize(&b1, d.free)});
+    const after = if (gain > 0) try arena.dupe(u8, fmtSize(&b2, d.free + gain)) else "";
+    const readout_w = @max(READOUT_MIN, now.len + if (gain > 0) " → ".len - 2 + after.len else 0);
+    const bx: usize = pw + 1;
+    if (win.width < bx + readout_w + 6) return;
+    const bw = win.width - bx - readout_w - 2;
+
+    const used_end = toCells(used, d.total, bw);
+    const gain_cells = if (gain == 0) 0 else @min(used_end, @max(1, used_end - toCells(used - gain, d.total, bw)));
+    const kept_end = used_end - gain_cells;
+    for (0..bw) |i| {
+        const x: u16 = @intCast(bx + i);
+        if (i < kept_end) {
+            win.writeCell(x, 1, .{ .char = FULL, .style = .{ .fg = HIGHLIGHT } });
+        } else if (i < used_end) {
+            win.writeCell(x, 1, .{ .char = SHADE, .style = .{ .fg = blinkColor(frame.step) } });
+        } else {
+            win.writeCell(x, 1, .{ .char = SHADE, .style = .{ .fg = DIM } });
+        }
+    }
+    frame.gain_y = 1;
+    frame.gain_x0 = @intCast(bx + kept_end);
+    frame.gain_x1 = @intCast(bx + used_end);
+
+    const col: u16 = @intCast(bx + bw + 2);
+    _ = win.print(&.{
+        .{ .text = now },
+        .{ .text = if (gain > 0) " → " else "", .style = .{ .fg = DIM } },
+        .{ .text = after, .style = .{ .fg = OK } },
+    }, .{ .wrap = .none, .row_offset = 1, .col_offset = col });
+}
+
+/// `bytes` of `total` as a whole number of the bar's `width` cells, rounded.
+fn toCells(bytes: u64, total: u64, width: usize) usize {
+    return @intCast((@as(u128, bytes) * width + total / 2) / total);
 }
 
 /// Converts a vaxis key press into a core key. Returns null for keys the core does not care about.

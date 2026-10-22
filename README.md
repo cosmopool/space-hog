@@ -52,6 +52,7 @@ The view opens right away and fills in while the scan runs. The status bar shows
 
 ```
  path of the current directory
+ disk name     ███████████████████░░░░░░░░░░░░░░░░░░░  free 79G → 97G
  ─────────────┬─────────────────────────────┬─────────────────────────────
   parent      │  current directory          │  preview: inside the
   directory   │  (sorted by size, biggest   │  selected entry
@@ -65,6 +66,7 @@ The view opens right away and fills in while the scan runs. The status bar shows
 - **Colors:** they point you at what matters.
   - **Blue:** the biggest entries that together make up **80 %** of the directory. Start there.
   - **Dimmed:** each of these is under **15 %** of the directory. They're rarely worth your time.
+- **Free-space bar:** the second line shows the whole disk the scan is on. `█` is used, dim `░` is free, and the number on the right is the free space. The selected entry's size is taken out of the used part and **blinks** as light `░`: that's what you'd get back by deleting it, and `→` shows the free space you'd end up with. It's read again after every `x`, `X` and `r`. Moving something to the trash doesn't free space until the trash is emptied. The name is the device on macOS (`/dev/disk3s5`) and the mount point on Linux.
 - **Parent column at the scan root:** it lists the root's real parent directory, unscanned, so those entries have no sizes. Pressing `h` there moves the scan up one level (see [Going up past the start](#going-up-past-the-start)).
 
 Markers after a size:

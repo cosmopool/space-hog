@@ -29,6 +29,7 @@ pub fn main(init: std.process.Init) !void {
 
     scanner.lock();
     try fsops.listOuter(gpa, &app, &listing);
+    try fsops.readDisk(gpa, &app);
     try scanner.registerLocked(app.root);
     try scanner.pushLocked(&.{app.root});
     scanner.unlock();
@@ -44,11 +45,15 @@ pub fn main(init: std.process.Init) !void {
         scanner.unlock();
         try tui.draw(arena.allocator(), try v);
 
-        const ev = try tui.next();
-        const key = switch (ev) {
-            .key_press => |k| tui_mod.coreKey(k) orelse continue,
-            else => continue,
+        // Blink ticks only recolor the cells drawn above; any other event rebuilds the view.
+        const pressed: ?core.Key = while (true) {
+            switch (try tui.next()) {
+                .tick => try tui.blink(),
+                .key_press => |k| break tui_mod.coreKey(k),
+                else => break null,
+            }
         };
+        const key = pressed orelse continue;
         scanner.lock();
         defer scanner.unlock();
         const cmd = try app.handleKey(key);

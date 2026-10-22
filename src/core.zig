@@ -14,6 +14,7 @@ pub const Kind = tree.Kind;
 pub const Key = keymap.Key;
 pub const View = view.View;
 pub const Row = view.Row;
+pub const Disk = view.Disk;
 
 pub const Scroll = struct {
     amount: enum { half_page, lines } = .half_page,
@@ -70,6 +71,9 @@ pub const App = struct {
     dry_logged: usize = 0,
     /// Log index of the latest dry-run note, shown in the status bar.
     last_dry_run: ?usize = null,
+    disk: Disk = .{},
+    /// Owns `disk.name`.
+    disk_name: std.ArrayList(u8) = .empty,
     scratch: std.ArrayList(NodeId) = .empty,
     sorted: std.ArrayList(NodeId) = .empty,
     path_buf: std.ArrayList(u8) = .empty,
@@ -91,6 +95,7 @@ pub const App = struct {
         app.log.deinit(gpa);
         app.outer.deinit(gpa);
         app.outer_names.deinit(gpa);
+        app.disk_name.deinit(gpa);
         app.scratch.deinit(gpa);
         app.sorted.deinit(gpa);
         app.path_buf.deinit(gpa);
@@ -194,6 +199,13 @@ pub const App = struct {
         }
     }
 
+    /// Size and free space of the scan root's volume. `total == 0` hides the free-space bar.
+    pub fn setDisk(app: *App, name: []const u8, total: u64, free: u64) Allocator.Error!void {
+        app.disk_name.clearRetainingCapacity();
+        try app.disk_name.appendSlice(app.gpa, name);
+        app.disk = .{ .name = app.disk_name.items, .total = total, .free = @min(free, total) };
+    }
+
     /// Moves the cursor by `delta` rows (clamped). Used for `Command.scroll`.
     pub fn moveCursor(app: *App, delta: i64) Allocator.Error!void {
         if (app.mode == .log) {
@@ -259,6 +271,7 @@ pub const App = struct {
             .last_dry_run = if (app.last_dry_run) |i| app.log.items[i] else "",
             .pending = try pendingText(arena, app.pending),
         };
+        v.disk = app.disk;
 
         var kids: std.ArrayList(NodeId) = .empty;
         try app.tree.sortedChildren(app.cwd, &kids, arena);

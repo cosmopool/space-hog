@@ -38,8 +38,8 @@ pub fn main(init: std.process.Init) !void {
         var screen: vaxis.Screen = try .init(gpa, .{ .rows = ROWS, .cols = COLS, .x_pixel = 0, .y_pixel = 0 });
         defer screen.deinit(gpa);
         const win: vaxis.Window = .{ .x_off = 0, .y_off = 0, .parent_x_off = 0, .parent_y_off = 0, .width = COLS, .height = ROWS, .screen = &screen };
-        var scroll: tui.Scroll = .{};
-        try tui.paint(arena.allocator(), win, try app.view(arena.allocator()), &scroll);
+        var frame: tui.Frame = .{};
+        try tui.paint(arena.allocator(), win, try app.view(arena.allocator()), &frame);
 
         const svg = try toSvg(arena.allocator(), &screen, scene.title);
         try out_dir.writeFile(io, .{ .sub_path = scene.file, .data = svg });
@@ -69,6 +69,7 @@ fn mockHome(gpa: Allocator) !core.App {
     errdefer app.deinit();
     const home = app.root;
     try app.setOuter(&.{ d("you", 0), d("Shared", 0), d("Guest", 0) });
+    try app.setDisk("/dev/disk3s5", 460 * G, 79 * G);
     _ = try app.addDir(home, &.{
         d("Library", 38 * G),    d("Development", 4 * K), d("Downloads", 9 * G), d("Movies", 6 * G),
         d("Pictures", 3 * G),    d("Documents", 1 * G),   d(".cache", 2 * G),    d("Music", 400 * M),

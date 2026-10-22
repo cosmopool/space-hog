@@ -230,6 +230,21 @@ test "r picks up external changes without duplicates" {
     try expectEqual(@as(usize, 1), (try w.view()).current.len);
 }
 
+test "readDisk: the scan root's volume has a size, free space within it, and a name" {
+    var w: World = undefined;
+    try w.init(twoDirs);
+    defer w.deinit();
+    w.scanner.lock();
+    try fsops.readDisk(gpa, &w.app);
+    w.scanner.unlock();
+    const d = (try w.view()).disk;
+    try expect(d.total > 0);
+    try expect(d.free <= d.total);
+    try expect(d.name.len > 0);
+    // Linux names the mount point, which must contain the scan root.
+    if (builtin.os.tag == .linux) try expect(std.mem.startsWith(u8, w.root, d.name));
+}
+
 test "parseArgs: flags, -j forms, last path wins, bad -j rejected" {
     const a = try fsops.parseArgs(&.{ "space-hog", "-n", "-j", "4", "/tmp" });
     try expect(a.dry_run);

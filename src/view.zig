@@ -41,6 +41,15 @@ pub const Status = struct {
     pending: []const u8 = "",
 };
 
+/// The volume holding the scan root, for the free-space bar. `total == 0` when unknown: no bar is drawn.
+pub const Disk = struct {
+    /// macOS: the device (`/dev/disk3s5`). Linux: the mount point.
+    name: []const u8 = "",
+    total: u64 = 0,
+    /// Bytes available to you (what `df` calls Avail).
+    free: u64 = 0,
+};
+
 pub const View = struct {
     mode: Mode = .normal,
     /// Full path of the current directory.
@@ -54,6 +63,7 @@ pub const View = struct {
     parent_cursor: usize = 0,
     cursor: usize = 0,
     status: Status = .{},
+    disk: Disk = .{},
     prompt: ?Prompt = null,
     /// Error log, oldest first (only filled in `.log` mode).
     log: []const []const u8 = &.{},
