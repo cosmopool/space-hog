@@ -94,9 +94,10 @@ jobs:
             read -r target label <<<"${entry}"
             name="space-hog-${tag}-${label}"
             zig build -Doptimize=ReleaseSafe -Dstrip=true -Dtarget="${target}" --prefix "stage/${label}"
-            # Archive layout: space-hog-<tag>-<target>/{space-hog,README.md}, no bin/ directory.
+            # Archive layout: space-hog-<tag>-<target>/{space-hog,README.md,LICENSE}, no bin/ directory.
+            # LICENSE must ship with binaries (BSD-3-Clause, clause 2).
             mkdir -p "pkg/${name}"
-            cp "stage/${label}/bin/space-hog" README.md "pkg/${name}/"
+            cp "stage/${label}/bin/space-hog" README.md LICENSE "pkg/${name}/"
             tar -C pkg -czf "dist/${name}.tar.gz" "${name}"
           done
           (cd dist && sha256sum -- *.tar.gz > SHA256SUMS)

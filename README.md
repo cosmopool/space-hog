@@ -245,3 +245,9 @@ zig build check    # before calling something done: tests, Debug + ReleaseSafe b
 - **Tests** are integration tests: through the app's public API, on real temporary directories (sizes compared against `du`), and painting the UI into an in-memory screen. Fuzz targets for hostile file names and keymap files live in `test/fuzzy/`. See `AGENTS.md` and `.agents/rules/testing.md`.
 - **Architecture:** the core (`src/core.zig` + tree, rules, keymap, view) never touches the disk or the terminal. The platform entry points (`src/platform/`) run the loop, and `src/fsops.zig` performs the side effects.
 - **Design decisions** and their alternatives are in [`docs/decisions.md`](docs/decisions.md).
+
+---
+
+## License
+
+[BSD 3-Clause](LICENSE) © 2026 Kaio Delphino. You can use, modify and redistribute it, in source or binary form, as long as you keep the copyright notice and license text, and you don't use the author's name to promote derived products without permission.

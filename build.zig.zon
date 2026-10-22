@@ -9,5 +9,5 @@
             .hash = "vaxis-0.6.0-BWNV_IoaDQDXEsN4nhfsjQlgU3EfkQqJqTGkAW-vjAi0",
         },
     },
-    .paths = .{ "build.zig", "build.zig.zon", "src" },
+    .paths = .{ "build.zig", "build.zig.zon", "src", "LICENSE" },
 }
